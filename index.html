@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#FCFCFB" />
+    <!-- 중괄호 둘로 감싼 '권수'는 개발 서버·빌드가 책 데이터의 권수로 채운다(scripts/bookCountHtml.ts) -->
+    <meta
+      name="description"
+      content="21세기북스 '서가명강' 시리즈 1~{{권수}}권을 한 서가에서 번호순으로 둘러보는 페이지. 서울대 교수진의 강의를 책으로 만난다."
+    />
+    <title>서가명강 서가 — 서울대 가지 않아도 들을 수 있는 명강의 1~{{권수}}권</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+/** 책 한 권의 3D 모형("책 자산"). 설명은 `docs/book-assets.md` */
+export { COVER_THICKNESS, bookDimensions, coverHinge, hingeRotation } from './spec'
+export type { BookImages, BookSpec, CoverHinge, CoverSide } from './spec'
+export { HIGH_RES_IMAGES, bookAssetFrom, bookAssets, bookSpecFrom, imagesFor } from './manifest'
+export type { BookAsset, ImageQuality } from './manifest'
+export { createTextureCache, prepareCoverTexture, sharedBookTextures } from './textures'
+export type { TextureCache, TextureSource } from './textures'
+export { PAGE_TEXTURE, createPageEdgeTexture, pageEdgeLevels } from './pageTexture'
+export { createBookGeometries } from './geometry'
+export { BOOK_FACES, createBookModel, createBookShared } from './model'
+export type { BookFace, BookModel, BookModelOptions, BookPart, BookShared, BookSharedOptions, MaterialHook } from './model'

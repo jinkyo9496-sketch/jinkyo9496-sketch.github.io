@@ -1,0 +1,393 @@
+/* 디자인 토큰 (docs/design-system.md). 이 외의 색 값은 쓰지 않는다. */
+:root {
+  --paper: #fcfcfb;
+  --ink: #111111;
+  --ink-2: #6b6b6b;
+  /* 먹이 아주 살짝 빠진 색(먹에 종이를 25% 섞은 값, 종이 위 8.4:1): 전체 메뉴의 항목. 포인터·포커스에서 먹이 된다 */
+  --ink-soft: #4c4c4c;
+  --ink-faint: #d6d6d3;
+  --rule: #111111;
+  /* 서가의 종이와 먹 그대로(책 페이지에서도 바뀌지 않는다): 권수 다이얼의 선이 쓴다. 서가에서는 연한 회색, 책 페이지에서는 종이색 */
+  --shelf-paper: #fcfcfb;
+  --shelf-ink: #111111;
+  --shelf-ink-2: #6b6b6b;
+  --shelf-ink-faint: #d6d6d3;
+  --shadow: rgba(17, 17, 17, 0.18);
+  /* 바닥 반사의 가장 진한 곳(책 바로 아래): 먹 16%. 마스크의 알파로만 쓴다 */
+  /* 모달 뒤를 덮는 종이색 막: 종이 82%. 전체 메뉴의 반투명 판도 이 색이다(뒤를 흐린다) */
+  --veil: rgba(252, 252, 251, 0.82);
+  /* 책의 입체감: 면 가장자리의 옅은 그늘, 뽑힌 책이 옆에 드리우는 그림자 */
+  --edge-shade-soft: rgba(17, 17, 17, 0.08);
+  --cast: rgba(17, 17, 17, 0.4);
+  /* 책의 종이 단면(위·아래·배): 표지보다 조금 누런 흰색. WebGL 서가가 읽어 쓴다 */
+  --book-block: #f1eee6;
+  /* 신간 소개의 말풍선(편집자가 준 그림의 초록). 종이색 글자와의 대비 3.5:1: 큰 글자(24px 이상·굵게)에만 쓴다 */
+  --bubble: #5b9460;
+  /* 표지가 정면으로 돌아올 때 한 번 스치는 빛 */
+  --glint: rgba(255, 255, 255, 0.3);
+  /* 종이·천 결: 아주 옅은 검은 알갱이(160px 타일) */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.14 -0.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  --ease-shelf: cubic-bezier(0.32, 0.12, 0.2, 1);
+  --dur-shelf: 680ms;
+  /* 화면 전환(인트로·신간 소개 ↔ 서가 ↔ 학제별 분류). 실제 값은 App이 `app/screen.ts`의 SCREEN_TRANSITION_MS로 넣는다 */
+  --dur-screen: 700ms;
+
+  /* 화면 틀: 위·아래는 헤더와 하단 바 자리(S4) */
+  --header-h: 56px;
+  --footer-h: 48px;
+  --page-pad: 20px;
+  --band-size: clamp(30px, 3.6vw, 56px);
+  --band-leading: 1.2;
+  --band-pad-top: 24px;
+
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-style: normal;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  /* 가로로 돌려도 글자 크기를 브라우저가 멋대로 키우지 않게(iOS) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  /* 화면 전체가 고정된 한 장면이다. 페이지 자체는 스크롤하지 않는다. */
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--paper);
+}
+
+/*
+ * 책 페이지의 색: 화면 전체의 바탕(--page-bg)과 그 위의 글자·선(--page-fg).
+ * 평소에는 종이와 먹이고, 책 페이지가 열리면 App이 그 책의 대표색(`data/bookColors.ts`)을 .app에 넣는다.
+ * 색으로 등록해 두어 값이 바뀔 때 부드럽게 넘어간다(등록을 모르는 브라우저에서는 바로 바뀐다).
+ */
+@property --page-bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
+@property --page-fg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
+/*
+ * 화면 틀. 헤더는 맨 위에 떠 있고, 그 아래로 세 자리(웰컴 자리 / 서가 / 학제별 분류)가 위아래로 붙어 있다.
+ * 화면을 바꿀 때는 셋을 감싼 .screens를 통째로 올리고 내린다(페이지는 스크롤하지 않는다).
+ * 신간 소개(`feature`)는 웰컴 자리에 인트로와 겹쳐 놓인 화면이다: 인트로 ↔ 신간 소개에서는 .screens가 움직이지 않는다.
+ */
+.app {
+  --page-bg: var(--paper);
+  --page-fg: var(--ink);
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--page-bg);
+  /* 서가로 돌아올 때: 책이 돌아가는 동안 종이색으로 */
+  /* 서가로 돌아올 때: 먼저 책 페이지가 치워진다(종이색으로). 그 뒤에 책들이 돌아온다(motion.ts의 PAGE_CLOSE.clear) */
+  --page-clear: 450ms;
+  /* 책 페이지를 열 때: 책이 들리고 나머지 책이 쓸려 나간 뒤에 들어온다(motion.ts의 PAGE_OPEN.pageAt) */
+  --page-open-at: 1100ms;
+  --page-in: 500ms;
+  transition:
+    --page-bg var(--page-clear) linear,
+    --page-fg var(--page-clear) linear;
+}
+
+/* 책 페이지를 열 때: 책이 자리로 옮겨 가는 동안 색이 들어온다. 책 페이지 사이에서는 조금 일찍 */
+.app[data-view='book'] {
+  transition-duration: var(--page-in);
+  transition-delay: var(--page-open-at);
+}
+
+.app[data-view='book'][data-page='turn'] {
+  transition-delay: 140ms;
+}
+
+/* 주소로 바로 들어온 책 페이지: 처음부터 그 색이다 */
+.app[data-view='book'][data-page='direct'] {
+  transition: none;
+}
+
+/*
+ * 학제별 분류의 책이 책 페이지의 자리로 날아가는 동안(data-fly): 분류 화면의 캔버스가 그 책의 대표색으로 화면을 덮어 온다
+ * (`fields3d/scene.ts`의 바탕색). 그 위에 떠 있는 헤더도 같은 때에 같은 빠르기로 그 색이 된다(시간은 App이
+ * `FIELDS_FLIGHT`에서 넣는다). 책이 닿으면 data-fly가 빠지고, 그때는 이미 그 색이다
+ */
+.app[data-view='book'][data-page='direct'][data-fly] {
+  transition:
+    --page-bg var(--fly-veil-ms, 330ms) linear var(--fly-veil-at, 477ms),
+    --page-fg var(--fly-veil-ms, 330ms) linear var(--fly-veil-at, 477ms);
+}
+
+/*
+ * 그 거꾸로: 책 페이지를 닫아 그 책이 분류 화면의 제자리로 날아가는 동안(data-return). 분류 화면의 캔버스에서 대표색이
+ * 걷히는 때에 같은 빠르기로 헤더도 종이색으로 돌아온다(시간은 App이 `FIELDS_RETURN`·`FIELDS_FLIGHT`에서 넣는다)
+ */
+.app[data-return] {
+  transition:
+    --page-bg var(--return-veil-ms, 330ms) linear var(--return-veil-at, 33ms),
+    --page-fg var(--return-veil-ms, 330ms) linear var(--return-veil-at, 33ms);
+}
+
+/*
+ * 헤더와 화면들은 그 색을 종이·먹 토큰으로 받는다: 안의 글자·선·`[ ]` 버튼(반전 포함)·포커스 링이 모두 따라온다.
+ * 모달(상세)은 여기 들지 않아 늘 종이와 먹이다.
+ */
+.app > .header,
+.app > .screens {
+  --paper: var(--page-bg);
+  --ink: var(--page-fg);
+  --rule: var(--page-fg);
+  color: var(--ink);
+}
+
+/*
+ * 인트로와 학제별 분류 화면은 늘 종이와 먹이다. 분류 화면의 3D 책에서 책 페이지를 열고 닫을 때는 화면이 옮겨 가는
+ * 동안 두 화면이 함께 보이는데, 그때도 분류 화면의 색은 바뀌지 않는다(책의 대표색은 서가 화면만 입는다).
+ */
+.app > .screens > .screen:not(.screen--shelf) {
+  --paper: var(--shelf-paper);
+  --ink: var(--shelf-ink);
+  --rule: var(--shelf-ink);
+  color: var(--ink);
+}
+
+.screens {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* 세로로 쌓인 자리 셋(웰컴 자리 / 서가 / 학제별 분류): 한 화면은 이 높이의 1/3 */
+  height: 300%;
+  transform: translate3d(0, 0, 0);
+  /* --screen-delay: 서가에서 웰컴으로 올라갈 때만 있다(App). 가운데 책이 꽂히기 시작한 뒤에 화면이 움직인다 */
+  transition: transform var(--dur-screen) var(--ease-shelf) var(--screen-delay, 0ms);
+}
+
+/* 책이 날아가 닿는 순간: 화면은 밀려 올라가지 않고 그 자리에서 책 페이지로 바뀐다 */
+.screens[data-snap] {
+  transition: none;
+}
+
+.screens[data-screen='shelf'] {
+  transform: translate3d(0, calc(-100% / 3), 0);
+}
+
+.screens[data-screen='fields'] {
+  transform: translate3d(0, calc(-200% / 3), 0);
+}
+
+.screen {
+  height: calc(100% / 3);
+}
+
+/*
+ * 신간 소개 화면: 웰컴(인트로)과 같은 자리에 겹쳐 놓인다(맨 위 칸). 바탕을 칠하지 않아 뒤의 인트로(종이색)가 비치고,
+ * 인트로의 큰 로고와 캐치프레이즈는 이 화면에서 거둔다(intro.css). 보이지 않는 동안에는 `inert`라 누름이 인트로로 내려간다.
+ */
+.screens > .screen--feature {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+/* 서가 화면: 헤더 자리 / 무대(타이틀 띠 + 서가) / 하단 바. 띠와 책은 겹치지 않는다. */
+.screen--shelf {
+  position: relative;
+  display: grid;
+  grid-template-rows: var(--header-h) minmax(0, 1fr) var(--footer-h);
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--paper);
+}
+
+/* 다른 화면에서 막 들어온 순간: 책과 띠가 제자리에서 나타나도록 이동 전환을 끈다 */
+.screen--shelf[data-still] .book,
+.screen--shelf[data-still] .book__box,
+.screen--shelf[data-still] .book__face,
+.screen--shelf[data-still] .book__face::after,
+.screen--shelf[data-still] .book__shadow,
+.screen--shelf[data-still] .band__track,
+.screen--shelf[data-still] .band__item {
+  transition: none !important;
+}
+
+.stage {
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.stage > .band {
+  grid-row: 1;
+}
+
+/* 서가는 .stage__shelf에 싸여 있다(책 페이지가 열리면 이 묶음만 조작에서 뺀다). 묶음은 배치에 끼지 않는다 */
+.stage__shelf {
+  display: contents;
+}
+
+.stage .shelf {
+  grid-row: 2;
+}
+
+/*
+ * WebGL 서가의 캔버스: 서가 화면 전체를 덮는다(책 페이지에서는 책이 서가 칸 밖에 떠 있다).
+ * 서가에서는 서가 칸(--row-top ~ --row-bottom, Shelf3D가 잰다)만 보이게 잘라 두고, 책 페이지가 열리면 바로 풀고,
+ * 닫힐 때는 책이 서가에 돌아온 뒤(2초)에 다시 자른다.
+ */
+.shelf-canvas {
+  position: absolute;
+  inset: 0;
+  /* 책은 타이틀 띠보다 위에 그린다: 집어 든 책이 띠까지 올라오면 제목이 책 뒤로 가려진다 */
+  z-index: 1;
+  pointer-events: none;
+  clip-path: inset(var(--row-top, 0px) 0 var(--row-bottom, 0px) 0);
+  transition: clip-path 0s linear 2300ms;
+  animation: shelf-canvas-in 400ms linear;
+}
+
+.app[data-view='book'] .shelf-canvas {
+  clip-path: inset(0);
+  transition-delay: 0s;
+}
+
+@keyframes shelf-canvas-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 책 페이지가 열려 있는 동안 하단 바는 물러난다(그 자리는 책 페이지의 조작부가 쓴다) */
+.screen--shelf > .bar {
+  transition: opacity 240ms linear;
+}
+
+.app[data-view='book'] .screen--shelf > .bar {
+  opacity: 0;
+  transition-delay: calc(var(--page-open-at) - 240ms);
+}
+
+/* 전환 없이 열린 책 페이지(주소로 바로 들어왔거나 학제별 분류의 3D 책에서 열었다): 하단 바도 처음부터 물러나 있다 */
+.app[data-view='book'][data-page='direct'] .screen--shelf > .bar,
+.app[data-view='book'][data-page='direct'] .band__no {
+  transition: none;
+}
+
+/* 책 페이지: --book-left/right는 떠 있는 책의 자리(제목 띠가 굴러가는 폭)다. 책도 글도 대표색 바탕 위에 바로 놓인다(판 없음) */
+.screen--shelf {
+  --book-left: var(--page-pad);
+  --book-right: 60%;
+  /* 책 페이지에서 띠를 줄이는 비율과, 그렇게 줄어든 띠의 높이 */
+  --band-scale: 0.7;
+  --band-page-h: calc((var(--band-pad-top) + var(--band-size) * var(--band-leading)) * var(--band-scale));
+}
+
+/*
+ * 책 페이지의 타이틀 띠: 서가의 띠가 책 위쪽으로 옮겨 와 책 자리의 폭 안에서만 굴러간다(가운데는 이 책, 좌우로 앞뒤 책의 제목).
+ * 띠는 책의 대표색 바탕 위에 있다: 글자는 그 페이지의 글자색, 옅은 제목은 그 30%다.
+ * 글자 크기를 바꾸지 않고 띠를 통째로 줄여 옮긴다: 서가 칸의 높이가 그대로라 책이 움직이는 전환이 끊기지 않고,
+ * 띠도 부드럽게 따라간다. 책 자리의 폭 밖(오른쪽 소개 글 쪽)은 잘라 낸다.
+ *   옮김: 책 자리의 가운데 − 화면의 가운데.  자름: 줄이기 전 좌표로 책 자리의 반 폭만 남긴다.
+ */
+.stage > .band {
+  --band-half: calc((var(--book-right) - var(--book-left)) / 2);
+  transform-origin: 50% 0;
+  scale: 1;
+  translate: 0 0;
+  clip-path: inset(0 0);
+  /*
+   * 서가로 돌아올 때: 책 페이지가 치워지는 동안 가운데로 돌아온다. 다시 커지는 것은 앞에 나와 있던 책이
+   * 뒤로 놓일 때다(motion.ts의 PAGE_CLOSE.settleAt): 책이 앞에 나와 있는 동안에는 띠가 작아 서로 닿지 않는다.
+   */
+  transition:
+    scale 420ms var(--ease-shelf) 1880ms,
+    translate 480ms var(--ease-shelf),
+    clip-path 480ms var(--ease-shelf),
+    /* 인트로에서 내려올 때: 인트로에서는 띠를 감춰 두고(intro.css) 서가가 올라오는 동안 나타난다 */
+    opacity 320ms linear 240ms;
+}
+
+/*
+ * 책을 누르는 순간 띠가 바로 줄어든다(앞으로 나온 책과 겹치지 않게). 권 번호도 그때 물러난다.
+ * 책 자리의 가운데로 옮겨 가고 그 폭으로 잘리는 것은 책 페이지가 들어올 때다.
+ */
+.app[data-view='book'] .stage > .band {
+  --ink-faint: color-mix(in srgb, var(--page-fg) 30%, transparent);
+  scale: var(--band-scale);
+  translate: calc((var(--book-right) + var(--book-left)) / 2 - 50%) 0;
+  clip-path: inset(0 calc(50% - var(--band-half) / var(--band-scale)));
+  transition:
+    scale 420ms var(--ease-shelf),
+    translate 640ms var(--ease-shelf) var(--page-open-at),
+    clip-path 640ms var(--ease-shelf) var(--page-open-at);
+}
+
+.app[data-view='book'][data-page='direct'] .stage > .band {
+  transition: none;
+}
+
+/* 줄어든 띠에서도 권 번호가 서가에서와 같은 크기로 읽히게, 번호만 줄어든 만큼 되키운다(자리는 그대로라 띠가 흔들리지 않는다) */
+.band__no {
+  transform-origin: 0 0;
+  transition: transform 420ms var(--ease-shelf) 1880ms;
+}
+
+.app[data-view='book'] .band__no {
+  transition-delay: 0s;
+}
+
+.app[data-view='book'] .band__no {
+  transform: scale(calc(1 / var(--band-scale)));
+}
+
+@media (max-width: 480px) {
+  :root {
+    --band-size: 32px;
+    --band-pad-top: 16px;
+    --page-pad: 16px;
+  }
+}
+
+
+/* 화면에는 보이지 않고 보조 기술에만 읽히는 텍스트 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * ←/→ 키를 누르고 있어 책장이 계속 지나가는 동안: 책과 타이틀 띠가 걸음마다
+ * 멈칫하지 않고 이어서 미끄러진다. 한 걸음의 길이(--dur-shelf)는 App이 넣는다. 손을 떼면 원래 속도로 돌아가 멈춘 책이 펼쳐진다.
+ */
+.stage[data-gliding] {
+  --ease-shelf: cubic-bezier(0.25, 0.5, 0.35, 1);
+}

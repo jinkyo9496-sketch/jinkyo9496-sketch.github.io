@@ -1,0 +1,338 @@
+/*
+ * 인트로 화면. 색은 :root 토큰만 쓴다. 헤더가 위에 겹쳐 있어 그 높이만큼 비우고, 아래는 서가의 책 머리가 비치는
+ * 띠(--peek-zone: App이 `intro/usePeek`로 재서 넣는다. 못 쟀으면 0)만큼 비운다: 로고 묶음이 비치는 책과 겹치지 않는다.
+ */
+.intro {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  padding: var(--header-h) var(--page-pad) var(--peek-zone, 0px);
+  background: var(--paper);
+  /* 세로 쓸기는 화면 전환이 받는다(페이지는 스크롤하지 않는다). 두 손가락 확대는 그대로 */
+  touch-action: pinch-zoom;
+}
+
+/* 내용 자리: 헤더 아래부터 비치는 책 위까지 전부. 로고 묶음을 가운데(눈에는 조금 위)에 둔다 */
+.intro__content {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  padding-bottom: 6vh;
+}
+
+/*
+ * 로고와 캐치프레이즈의 묶음. 폭은 로고의 폭이고(그림의 원래 폭 552px을 넘지 않는다: 그보다 키우면 흐려진다),
+ * 캐치프레이즈는 그 폭에 꼭 맞는 한 줄이다(글자 크기를 묶음 폭에 비례하게: cqw).
+ * 마지막 값은 아주 낮은 창을 위한 것이다: 묶음의 높이(폭의 약 0.47배)가 헤더와 비치는 책 사이에 들어가는 폭을 넘지 않는다
+ * (높이 약 460px 아래에서만 걸린다. 그 위에서는 앞의 세 값이 정한다).
+ */
+.intro__lockup {
+  container-type: inline-size;
+  width: min(552px, 62vw, 100%, calc((100vh - var(--header-h) - var(--peek-zone, 0px) - 6vh - 24px) / 0.5));
+}
+
+.intro__logo {
+  margin: 0;
+  font-size: 13cqw;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.intro__logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 한 줄을 로고의 양 끝에 맞춘다(낱말 사이가 고르게 벌어진다). 위의 점이 로고에 닿지 않게 사이를 둔다 */
+.intro__phrase {
+  margin: 10cqw 0 0;
+  color: var(--ink);
+  font-size: 6.2cqw;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  text-align: justify;
+  text-align-last: justify;
+}
+
+/*
+ * 화면이 처음 뜰 때 한 번 도는 등장(움직임은 늘 재생: 프로젝트 방침). 차례:
+ * 로고가 아래에서 떠오른다(0ms~) → 캐치프레이즈가 따라 올라온다(450ms~) → 점이 서 → 가 → 명 → 강 순서로
+ * 위에서 내려와 찍힌다(1100ms~, 160ms 간격) → 서가의 책 머리가 아래에서 올라와 비친다(1900ms~, 아래 `intro-peek`).
+ * 이징은 `--ease-shelf`.
+ */
+.intro__logo {
+  animation: intro-rise 900ms var(--ease-shelf) both;
+}
+
+.intro__phrase {
+  animation: intro-rise 700ms var(--ease-shelf) 450ms both;
+}
+
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    translate: 0 0.5em;
+  }
+}
+
+/*
+ * 서 · 가 · 명 · 강 위의 점. 글자 위 가운데에 놓는 글꼴의 점(•)이다: 둥근 모서리로 그린 도형이 아니다.
+ * 크기와 높이를 글자 크기에 비례해 정하고(em), 등장할 때 위에서 내려와 찍힌다. 읽기 도구에는 읽히지 않게 대체 글을 비운다.
+ */
+.intro__dot {
+  position: relative;
+  font-weight: 700;
+  /*
+   * 처음에는 나머지 글과 같은 굵기로 보이다가, 점이 떨어질 때 굵은 글자로 채워진다(2026-11-24 편집자 요청).
+   * 자리는 처음부터 굵은 글자의 폭으로 잡아 둔다(줄이 밀리지 않는다): 굵은 글자는 투명했다가 나타나고,
+   * 그 위에 겹쳐 둔 가는 글자(::after)는 같은 박자로 사라진다.
+   * 겹친 글자가 읽기 도구에 두 번 읽히지 않게 대체 글을 비우는데(`content: … / ''`), 이 문법을 모르는
+   * 브라우저에서는 겹치지 않고 처음부터 굵게 둔다(@supports).
+   */
+}
+
+@supports (content: 'a' / '') {
+  .intro__dot {
+    animation: intro-bold 420ms var(--ease-shelf) both;
+    animation-delay: calc(1100ms + var(--i, 0) * 160ms);
+  }
+
+  /* 굵어지기 전의 가는 글자 */
+  .intro__dot::after {
+    content: attr(data-text) / '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    color: var(--ink);
+    font-weight: 500;
+    translate: -50% 0;
+    animation: intro-thin 420ms var(--ease-shelf) both;
+    animation-delay: calc(1100ms + var(--i, 0) * 160ms);
+  }
+}
+
+@keyframes intro-bold {
+  from {
+    color: transparent;
+  }
+}
+
+@keyframes intro-thin {
+  to {
+    opacity: 0;
+  }
+}
+
+.intro__dot::before {
+  content: '•';
+  content: '•' / '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-bottom: -0.34em;
+  color: var(--ink);
+  font-size: 0.62em;
+  font-weight: 700;
+  line-height: 1;
+  translate: -50% 0;
+  animation: intro-dot 420ms var(--ease-shelf) both;
+  animation-delay: calc(1100ms + var(--i, 0) * 160ms);
+}
+
+@keyframes intro-dot {
+  from {
+    opacity: 0;
+    translate: -50% -0.9em;
+  }
+}
+
+/*
+ * `[ 서가 보기 ]`: 화면에서는 지웠다(2026-11-24. 아래에 비치는 책이 그 일을 한다). 키보드·읽기 도구의 길로만 남는다:
+ * 평소에는 보이지 않고 키보드 포커스가 왔을 때만 보인다(건너뛰기 링크 방식). 자리는 비치는 책 바로 위, 가운데.
+ * 움직임(animation)으로 숨기지 않는다: 포커스가 떠날 때 처음부터 다시 돌아 버튼이 한참 사라진다. 상태로만 숨긴다.
+ */
+.intro__enter {
+  position: absolute;
+  bottom: calc(var(--peek-zone, 0px) + 8px);
+  left: 50%;
+  translate: -50% 0;
+}
+
+.intro__enter:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/*
+ * ── 아래에 비치는 서가 ─────────────────────────────────────────
+ * 웰컴 자리(인트로와 신간 소개: `.screens[data-place='welcome']`. 2026-11-24, 신간 소개에서도 그대로 비친다)일 때의 이야기다.
+ * 인트로일 때 서가 화면을 통째로 위로 당겨(--peek-shift = 서가 화면 안의 책 윗선 + 비치는 높이) 책 머리만 화면 아래에
+ * 걸치게 한다. 따로 그린 그림이 아니라 서가 그 자체라서, 내려가면 비치던 책이 그대로 올라와 서가가 된다.
+ * 서가 화면의 위쪽(헤더 자리와 타이틀 띠 = --peek-clip, 서가 칸의 위)은 잘라 낸다: 인트로에는 책만 보인다.
+ * 서가로 내려가면 화면 전환과 같은 시간·이징으로 당김과 자름이 풀린다. 인트로는 한 화면만큼 올라가고 서가는
+ * 비친 만큼 덜 올라온다. 자른 선은 늘 로고 묶음보다 아래에서 움직이므로(인트로가 더 빨리 올라간다) 서가 화면의
+ * 종이색이 로고를 덮는 일이 없다: 인트로라는 종이가 위로 걷히며 서가가 드러나는 것처럼 보인다.
+ * 값은 App이 `.app`에 넣는다(`intro/usePeek`). 못 쟀으면 0: 비치지 않고 예전처럼 서가가 화면 아래에 있다.
+ * (서가 화면은 늘 clip-path를 가져 쌓임 맥락이 된다. 안의 캔버스·책 페이지의 순서는 그대로고 헤더는 그 위다.)
+ */
+.screens > .screen--shelf {
+  translate: 0 0;
+  clip-path: inset(0 0 0 0);
+  transition:
+    translate var(--dur-screen) var(--ease-shelf),
+    clip-path var(--dur-screen) var(--ease-shelf);
+  /* 서가에서 웰컴으로 올라갈 때는 화면 전체(.screens)와 같이 조금 늦게 시작한다(App의 --screen-delay) */
+  transition-delay: var(--screen-delay, 0ms);
+  /*
+   * 등장: 페이지가 처음 뜰 때 한 번, 로고 → 캐치프레이즈 → 점이 끝날 무렵 책 머리가 아래에서 올라와 자리 잡는다.
+   * 그때까지는 화면 아래에 내려가 있다(backwards). 이 선언은 화면이 바뀌어도 그대로라 다시 재생되지 않는다:
+   * 인트로로 돌아올 때는 위의 전환만 돈다. 내려 두는 양(--peek-from)은 인트로일 때만 있어, 서가에서 시작한
+   * 화면(책 페이지의 주소)은 움직이지 않는다.
+   */
+  animation: intro-peek 760ms var(--ease-shelf) 1900ms backwards;
+}
+
+.screens[data-place='welcome'] > .screen--shelf {
+  --peek-from: calc(var(--peek-zone, 0px) + 8px);
+  translate: 0 calc(var(--peek-shift, 0px) * -1);
+  clip-path: inset(var(--peek-clip, 0px) 0 0 0);
+}
+
+/*
+ * 타이틀 띠는 인트로에서 잘려 보이지 않는다. 화면이 바뀌는 동안에는 자른 선이 띠를 지나가므로(큰 제목이 반쯤 잘린 채
+ * 움직여 보인다) 띠를 불투명도로도 감춘다: 인트로로 올라갈 때는 자른 선이 닿기 전에 사라지고(160ms), 서가로 내려갈 때는
+ * 자름이 다 풀릴 무렵 나타난다(240ms 뒤 320ms: `index.css`의 `.stage > .band`).
+ */
+.screens[data-place='welcome'] .stage > .band {
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+
+@keyframes intro-peek {
+  from {
+    transform: translateY(var(--peek-from, 0px));
+  }
+}
+
+/*
+ * 비치는 책 자리를 덮는 보이지 않는 판: 마우스로 누르면 서가로 내려간다(Intro.tsx). 그 위에 걸친 서가 화면은
+ * 인트로에서 `inert`라 누름이 이 판으로 내려온다.
+ */
+.intro__peek {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--peek-zone, 0px);
+  cursor: pointer;
+}
+
+/*
+ * 인트로에서는 헤더 아래의 1px 선도 거둔다(2026-11-24 사용자 요청). 서가로 내려가면 작은 로고와 같은 박자(300ms)로
+ * 나타나고, 인트로로 돌아오면 다시 사라진다. 선은 `chrome.css`의 `.header::after`.
+ */
+.app > .header::after {
+  transition: opacity 300ms linear;
+}
+
+.app:has(> .screens[data-screen='intro']) > .header::after {
+  opacity: 0;
+}
+
+/*
+ * 인트로에서는 큰 로고가 화면의 주인이므로 헤더의 작은 로고를 거둔다(같은 로고가 두 번 보이지 않게).
+ * 서가로 내려가면 화면 전환과 함께 헤더의 로고가 돌아온다. 보이지 않는 동안에는 누를 수도, 탭으로 갈 수도 없다
+ * (인트로에서 로고는 "인트로로"라서 할 일이 없다).
+ */
+.app > .header .logo {
+  transition:
+    opacity 300ms linear,
+    visibility 0s linear 0s;
+}
+
+.app:has(> .screens[data-screen='intro']) > .header .logo {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms linear,
+    visibility 0s linear 300ms;
+}
+
+/*
+ * ── 큰 로고 ↔ 헤더의 로고(신간 소개. 2026-11-24) ──────────────────
+ * 웰컴에서 신간 소개로 내려가면 큰 로고가 줄어들며 왼쪽 위 헤더의 로고 자리로 날아가고 캐치프레이즈는 사라진다.
+ * 따로 그린 그림을 날리는 것이 아니다: 헤더의 로고 그 자체를, 웰컴에서는 보이지 않는 채 큰 로고의 자리에 옮기고 키워
+ * 겹쳐 둔다(--logo-dx·--logo-dy·--logo-scale: App이 `intro/useLogoFlight`로 재서 넣는다. 못 쟀으면 제자리).
+ * 내려가는 순간 큰 로고를 거두고 헤더의 로고를 보이면 같은 자리·같은 크기라 바뀐 것이 보이지 않고, 거기서 화면 전환과
+ * 같은 시간·이징으로 제자리(헤더)에 돌아간다. 다 날아간 자리에 있는 것이 실제 헤더 로고다.
+ * 신간 소개에서 웰컴으로 올라갈 때는 그 거꾸로다: 헤더의 로고가 큰 로고 자리로 날아가 닿은 뒤에 큰 로고로 바뀐다.
+ * 어디서 왔는지는 `.screens[data-from]`(바로 앞 화면)으로 안다. 서가·분류에서 로고를 눌러 웰컴에 올 때는 날지 않는다:
+ * 예전처럼 헤더의 로고가 사라진 뒤(300ms)에 큰 로고 자리로 옮겨 둔다.
+ */
+.app > .header .logo > * {
+  transform-origin: 0 0;
+}
+
+.app:has(> .screens[data-screen='intro']) > .header .logo > * {
+  transform: translate(var(--logo-dx, 0px), var(--logo-dy, 0px)) scale(var(--logo-scale, 1));
+  transition: transform 0s linear 300ms;
+}
+
+.app:has(> .screens[data-screen='feature'][data-from='intro']) > .header .logo {
+  transition: none;
+}
+
+.app:has(> .screens[data-screen='feature'][data-from='intro']) > .header .logo > * {
+  transition: transform var(--dur-screen) var(--ease-shelf);
+}
+
+.app:has(> .screens[data-screen='intro'][data-from='feature']) > .header .logo {
+  transition:
+    opacity 0s linear var(--dur-screen),
+    visibility 0s linear var(--dur-screen);
+}
+
+.app:has(> .screens[data-screen='intro'][data-from='feature']) > .header .logo > * {
+  transition: transform var(--dur-screen) var(--ease-shelf);
+}
+
+/*
+ * 큰 로고와 캐치프레이즈: 신간 소개에서는 거둔다(인트로는 신간 소개 뒤에 그대로 깔려 있다). 신간 소개에서 서가로
+ * 내려가는 동안에도 거둔 채로 밀려 나간다(`data-from='feature'`). 등장 애니메이션(불투명도)과 부딪히지 않게 큰 로고는
+ * visibility로만 감춘다.
+ */
+.screens[data-screen='feature'] .intro__logo {
+  visibility: hidden;
+}
+
+.screens[data-from='feature']:not([data-screen='intro']) .intro__logo {
+  visibility: hidden;
+}
+
+/* 헤더의 로고가 날아와 닿은 뒤에 큰 로고로 바뀐다 */
+.screens[data-screen='intro'][data-from='feature'] .intro__logo {
+  transition: visibility 0s linear var(--dur-screen);
+}
+
+.screens[data-screen='feature'] .intro__phrase {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms linear,
+    visibility 0s linear 300ms;
+}
+
+.screens[data-from='feature']:not([data-screen='intro']) .intro__phrase {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* 웰컴으로 돌아오면 로고가 자리를 잡을 무렵 캐치프레이즈가 다시 나타난다 */
+.screens[data-screen='intro'][data-from='feature'] .intro__phrase {
+  transition: opacity 400ms linear 400ms;
+}

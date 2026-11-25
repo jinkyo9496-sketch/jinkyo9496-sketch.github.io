@@ -1,0 +1,486 @@
+/* 학제별 분류 화면. 색은 :root 토큰만 쓴다. 헤더가 위에 겹쳐 있어 그 높이만큼 비운다. 둥근 모서리·장식 그라데이션 없음
+   (끝을 옅게 지우는 마스크 둘은 예외: 글자 다이얼의 위아래 끝, 책 캔버스의 서랍 입구). */
+.fields {
+  display: grid;
+  /* 내용 자리 하나: 헤더 아래부터 화면 맨 아래까지(`[ 서가로 ]`가 있던 아래 줄은 2026-11-24에 없앴다: 빈 상자가
+     다이얼을 자른 것처럼 보였다). 화면 제목은 보이지 않고(sr-only) 줄을 차지하지 않는다 */
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  padding: var(--header-h) var(--page-pad) 0;
+  background: var(--paper);
+  color: var(--ink);
+  /* 세로 쓸기는 화면 전환이 받는다(페이지는 스크롤하지 않는다). 두 손가락 확대는 그대로 */
+  touch-action: pinch-zoom;
+}
+
+/*
+ * 내용 자리: 헤더 아래부터 화면 맨 아래까지 전부. 왼쪽 28.6%는 글자 다이얼, 오른쪽 71.4%는 책이 들어올 자리.
+ * 경계는 가장 긴 이름("경제·경영")의 오른쪽 끝 뒤다(글자 크기가 폭의 5%일 때 글자 끝은 약 20px + 25.3vw,
+ * 경계는 8.6px + 28.6vw: 글자와의 틈은 900px에서 18px, 1200px에서 28px, 1440px에서 36px). 멈춘 책은 경계 안에서만
+ * 그려지므로 글자 위로 지나가지 않는다.
+ * 이 경계가 "서랍 입구"다: 책은 여기서 나오고 여기로 들어간다
+ */
+.fields__content {
+  /* 보이지 않는 제목은 줄을 차지하지 않으므로 줄 번호를 적어 둔다 */
+  grid-row: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 286fr) minmax(0, 714fr);
+  min-height: 0;
+}
+
+/*
+ * ── 반원 글자 다이얼 ─────────────────────────────────────────
+ * 낱말들은 화면 왼쪽 바깥의 한 점(원의 중심)에서 뻗은 바큇살 위에 놓인다. 길이는 모두 글자 크기(em)로 적어
+ * 화면이 달라져도 모양이 같다.
+ *   --dial-size  글자 크기: 화면 높이의 9%, 다만 가장 긴 이름("경제·경영")이 다이얼 자리를 넘지 않고 책과의 사이에
+ *                숨 쉴 틈이 남게 폭의 5%까지
+ *   --dial-r     원의 반지름(중심에서 낱말의 왼쪽 끝까지)
+ *   --dial-step  낱말 사이의 간격각. 이웃한 낱말의 세로 간격은 r × sin(step) = 1.25em
+ *   --dial-x     가리키는 낱말의 왼쪽 끝(화면 왼쪽에서): 여백 + 포인터 자리 + 틈
+ *   --dial-turn  한 칸 도는 시간
+ */
+.fdial {
+  --dial-size: clamp(40px, min(9vh, 5vw), 88px);
+  --dial-r: 8em;
+  --dial-step: 9deg;
+  --dial-x: calc(var(--page-pad) + 1.35em);
+  --dial-turn: 650ms;
+  /* 위아래 끝에서 낱말이 옅어지며 사라지는 길이(다이얼 높이에 대한 비율) */
+  --dial-fade: 18%;
+  position: relative;
+  /* 화면 왼쪽 끝까지 쓴다(원이 화면 밖에서 돌아 들어온다) */
+  margin-left: calc(var(--page-pad) * -1);
+  min-height: 0;
+  /* 다이얼 자리 밖으로 뻗은 먼 낱말은 잘라 낸다(책 자리를 덮지 않는다) */
+  overflow: clip;
+  /* 위(헤더 선)와 아래(화면 끝)에서 낱말이 뚝 잘려 걸려 보이지 않게, 끝으로 갈수록 옅어지다 사라진다.
+     폭 900px 이상의 배치(실측한 높이 500px 이상)에서는 가리키는 낱말과 위아래 한 칸이 그대로 보이고, 두 칸째부터 화면 크기에 따라 옅어진다.
+     900px 미만의 쌓는 배치는 다이얼이 낮아 한 칸째 긴 이름의 끝도 옅어질 수 있다(실측은 docs/TODO.md) */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black var(--dial-fade),
+    black calc(100% - var(--dial-fade)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black var(--dial-fade),
+    black calc(100% - var(--dial-fade)),
+    transparent 100%
+  );
+  font-size: var(--dial-size);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  user-select: none;
+}
+
+/*
+ * 포인터: 가리키는 낱말의 왼쪽에 고정된, 낱말 쪽을 향한 삼각형(서가의 권수 다이얼의 포인터와 같은 모양. 모서리는 각지게).
+ * 오른쪽 끝은 예전 화살표의 끝과 같은 자리다(여백 + 0.95em): 낱말과의 틈 0.4em이 그대로다.
+ */
+.fdial__pointer {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--page-pad) + 0.53em);
+  width: 0.42em;
+  height: 0.56em;
+  background: var(--ink);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  translate: 0 -50%;
+  pointer-events: none;
+}
+
+/* 원: 중심점에 놓인 크기 없는 요소. 가리키는 학문만큼 거꾸로 돌아 그 낱말이 수평이 된다 */
+.fdial__wheel {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--dial-x) - var(--dial-r));
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: rotate(calc(var(--field) * var(--dial-step) * -1));
+  transition: transform var(--dial-turn) var(--ease-shelf);
+}
+
+/* 낱말 하나: 중심에서 (순번 × 간격각)만큼 돈 바큇살 위, 반지름만큼 나간 자리 */
+.fdial__item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  transform: rotate(calc(var(--i) * var(--dial-step))) translate(var(--dial-r), -50%);
+  white-space: nowrap;
+  transition: opacity var(--dial-turn) var(--ease-shelf);
+}
+
+.fdial__word {
+  display: block;
+  /* 누르는 영역은 44px 이상(글자 한 줄이 이미 그보다 크다) */
+  min-height: 44px;
+  margin: 0;
+  padding: 0 0.06em;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition:
+    color var(--dial-turn) var(--ease-shelf),
+    filter var(--dial-turn) var(--ease-shelf);
+}
+
+.fdial__word:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+
+/* 가리키는 학문: 먹색으로 또렷하게 */
+.fdial__item[data-away='0'] .fdial__word {
+  color: var(--ink);
+  cursor: default;
+}
+
+/* 나머지: 가운데에서 멀수록 연하고 흐리다. 바로 옆 낱말만 조금 진하게 두어 다음에 올 것이 읽힌다 */
+.fdial__item[data-away='1'] .fdial__word {
+  color: color-mix(in srgb, var(--ink-2) 38%, var(--ink-faint));
+  filter: blur(1.5px);
+}
+
+.fdial__item[data-away='2'] .fdial__word {
+  filter: blur(3px);
+}
+
+.fdial__item[data-away='3'] {
+  opacity: 0.75;
+}
+
+.fdial__item[data-away='3'] .fdial__word {
+  filter: blur(5px);
+}
+
+.fdial__item[data-away='4'] {
+  opacity: 0.45;
+}
+
+.fdial__item[data-away='4'] .fdial__word {
+  filter: blur(8px);
+}
+
+/* 네 칸보다 먼 낱말은 보이지 않는다(읽기 도구에는 남는다) */
+.fdial__item[data-away='5'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fdial__item[data-away='5'] .fdial__word {
+  filter: blur(8px);
+}
+
+/* 포인터를 올린 낱말은 또렷해진다(누를 수 있다는 표시) */
+@media (hover: hover) {
+  .fdial__item:not([data-away='0'], [data-away='5']) .fdial__word:hover {
+    color: var(--ink-2);
+    filter: blur(0);
+    transition-duration: 200ms;
+  }
+}
+
+/*
+ * ── 가리키는 학문의 책(WebGL) ────────────────────────────────
+ * 책 자리(`fields3d/FieldBooks3D`). 화면 오른쪽 끝까지 써서 넘친 책은 화면 끝에서 잘려 보인다.
+ * 캔버스는 이 화면 전체를 덮지만(누른 책이 책 페이지의 자리까지 날아간다) 평소에는 책 자리 안만 보인다.
+ * 캔버스는 투명해서 종이색이 그대로 비친다.
+ */
+.fbooks3d {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  margin-right: calc(var(--page-pad) * -1);
+}
+
+/*
+ * 왼쪽 끝은 다이얼 쪽 서랍 입구: 책이 여기서 나오고 여기로 들어간다(끌어 넘긴 책도 여기로 지나간다).
+ * 칼로 자른 듯 끊기지 않게 끝에서 --edge-fade 폭만큼 옅어진다. 색이 아니라 투명도 마스크이고, 책이 서랍 속으로
+ * 사라지는 모습을 그리는 음영이라 "장식 그라데이션 금지"의 예외다(docs/design-system.md). 마스크의 black은 "다 보인다"는 뜻일 뿐
+ * 화면에 칠해지는 색이 아니다. 폭은 `FieldBooks3D`가 넣는다(책 높이의 10%: 멈춘 첫 책의 왼쪽 여백보다 좁다).
+ * 책 버튼의 포커스 링은 이 요소 밖이라 옅어지지 않는다.
+ * 캔버스는 화면 전체를 덮는다: 책 자리의 왼쪽 위에서 --stage-left·--stage-top만큼 바깥으로 나가 --canvas-w × --canvas-h
+ * (`FieldBooks3D`가 잰다. 모르면 책 자리와 같다). 마스크는 책 자리의 왼쪽 끝(--stage-left)까지 아무것도 보이지 않게 하고
+ * 거기서부터 옅어지는 구간이 시작한다. 포인터는 받지 않는다(다이얼의 클릭을 막지 않는다. 책 자리가 받는다)
+ */
+.fbooks3d__canvas {
+  position: absolute;
+  left: calc(var(--stage-left, 0px) * -1);
+  top: calc(var(--stage-top, 0px) * -1);
+  width: var(--canvas-w, 100%);
+  height: var(--canvas-h, 100%);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent var(--stage-left, 0px),
+    black calc(var(--stage-left, 0px) + var(--edge-fade, 0px))
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent var(--stage-left, 0px),
+    black calc(var(--stage-left, 0px) + var(--edge-fade, 0px))
+  );
+}
+
+/*
+ * ── 책을 누르면: 들려서 책 페이지의 자리로 날아간다 ──────────────
+ * 날아가는 동안(`data-flight`) 캔버스는 마스크를 벗고(날아가는 책은 서랍 입구를 넘어 화면 왼쪽으로 간다. 나머지 책은
+ * 장면이 책 자리 안에서만 그린다) 화면의 다른 것 위로 올라온다. 그 책의 대표색이 캔버스에서 화면을 덮어 오고,
+ * 다이얼은 그 전에 옅어진다.
+ * 닿으면(`handoff`) 화면은 전환 없이 서가 자리(책 페이지)로 바뀌어 있다: 캔버스는 한 화면 위로 올라가 책 페이지 위에
+ * 겹쳐진 채 옅어진다(--flight-handoff: `fields3d/motion.ts`의 `FIELDS_FLIGHT.handoffMs`, App이 넣는다).
+ */
+.fbooks3d__canvas[data-flight] {
+  z-index: 5;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.fbooks3d__canvas[data-flight='handoff'] {
+  translate: 0 calc(var(--canvas-h, 100%) * -1);
+  opacity: 0;
+  transition: opacity var(--flight-handoff, 180ms) linear;
+}
+
+.fields[data-flight] .fdial {
+  opacity: 0;
+  transition: opacity var(--flight-fade, 360ms) linear;
+}
+
+/*
+ * ── 책 페이지를 닫으면: 그 책이 날아서 줄의 제자리로 돌아온다(위의 거꾸로) ──────
+ * settle  책 페이지의 펼친 책이 덮이기를 기다린다: 캔버스는 한 화면 위(책 페이지 위)에 올라가 있지만 보이지 않는다.
+ * depart  그 자리에서 떠오른다(--return-depart): 장면이 그 책을 책 페이지의 책과 같은 자리·자세로 그려 두었고 바탕색이
+ *         화면을 덮고 있어, 책 페이지의 책 위에 같은 윤곽이 겹쳐진다(책 페이지의 글은 그 아래에서 사라진다).
+ * return  화면은 전환 없이 분류 화면으로 바뀌어 있다: 캔버스는 제자리에서(마스크는 벗은 채) 책이 날아와 놓이고 바탕색이 걷힌다.
+ *         다이얼은 바탕색이 다 걷힌 뒤(--return-fade-at)부터 책이 놓일 때까지(--return-fade-ms) 다시 나타난다.
+ * 시간은 App이 `fields3d/motion.ts`의 `FIELDS_RETURN`·`FIELDS_FLIGHT`에서 넣는다.
+ */
+.fbooks3d__canvas[data-flight='settle'],
+.fbooks3d__canvas[data-flight='depart'] {
+  translate: 0 calc(var(--canvas-h, 100%) * -1);
+}
+
+.fbooks3d__canvas[data-flight='settle'] {
+  opacity: 0;
+}
+
+.fbooks3d__canvas[data-flight='depart'] {
+  animation: fields-appear var(--return-depart, 180ms) linear both;
+}
+
+.fields[data-flight='return'] .fdial {
+  transition: none;
+  animation: fields-appear var(--return-fade-ms, 477ms) linear var(--return-fade-at, 363ms) both;
+}
+
+@keyframes fields-appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * 보이지 않는 제목: 책 페이지를 닫고 돌아오면 포커스가 여기에 온다(돌아온 책 둘레에 포커스 링을 그리지 않는다).
+ * 이 요소 자체에도 포커스 표시를 그리지 않는다. Tab으로 책에 가면 책의 포커스 링은 평소처럼 보인다
+ */
+.fields__anchor:focus,
+.fields__anchor:focus-visible {
+  outline: none;
+}
+
+.fbooks3d__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 책 자리 전체가 포인터를 받아 좌표로 책을 고른다. 글자를 긁거나 그림을 끌어내지 않는다 */
+.fbooks3d {
+  user-select: none;
+  -webkit-user-select: none;
+  /* 가로 끌기는 줄 넘기기, 세로 쓸기는 다이얼 돌리기: 둘 다 스스로 처리한다. 두 손가락 확대는 그대로 */
+  touch-action: pinch-zoom;
+}
+
+/* 책 위에서는 누를 수 있다는 표시, 끌 수 있는 줄(네 권 이상)에서는 잡는 손 */
+.fbooks3d[data-over='book'] {
+  cursor: pointer;
+}
+
+.fbooks3d[data-grab] {
+  cursor: grab;
+}
+
+.fbooks3d[data-grab][data-dragging] {
+  cursor: grabbing;
+}
+
+/*
+ * 책 버튼: 눈에는 보이지 않지만(그림은 캔버스가 그린다) 포커스를 받고 보조 기술에 읽힌다.
+ * 멈춘 책의 표지가 화면에서 차지하는 자리에 놓여 있어(자리는 `FieldBooks3D`가 left·top·width·height로 넣는다)
+ * 포커스 링이 책을 두른다. 포인터는 받지 않는다(책 자리 전체가 받아 좌표로 고른다).
+ */
+.fbooks3d__books {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.fbooks3d__books > li {
+  display: contents;
+}
+
+.fbooks3d__book {
+  position: absolute;
+  /* 책이 다 돌기 전에는 자리를 모른다: 책 자리 전체를 두른다 */
+  left: 8px;
+  top: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  pointer-events: none;
+}
+
+.fbooks3d__book:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/*
+ * ── 가리키는 학문의 책(평면 표지) ────────────────────────────
+ * WebGL을 쓸 수 없거나 폭 900px 미만일 때의 책 자리(`FieldCovers`): 앞표지 그림이 움직임 없이 나란히 놓이고,
+ * 넘치면 가로로 스크롤한다. 표지마다 버튼이고 아래에 번호·제목·저자를 작은 글자로 적는다.
+ *   --cover-h  표지의 높이. 폭은 그 책의 표지 비율(--aspect)을 따른다
+ */
+.fcovers {
+  --cover-h: clamp(180px, 36vh, 320px);
+  align-self: center;
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(20px, 2.4vw, 36px);
+  min-width: 0;
+  /* 화면 오른쪽 끝까지 쓴다(넘친 표지가 화면 끝에서 잘려 보인다) */
+  margin: 0 calc(var(--page-pad) * -1) 0 0;
+  /* 위아래 여백은 포커스 링이 잘리지 않을 만큼 */
+  padding: 8px var(--page-pad) 16px clamp(24px, 4vw, 72px);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* 가로로 미는 것은 이 줄의 스크롤, 세로 쓸기는 다이얼 돌리기 */
+  touch-action: pan-x pinch-zoom;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-faint) transparent;
+}
+
+.fcovers__item {
+  flex: none;
+}
+
+.fcovers__book {
+  display: grid;
+  grid-template-columns: 2.2em minmax(0, 1fr);
+  row-gap: 2px;
+  width: calc(var(--cover-h) * var(--aspect));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.fcovers__book:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+
+/* 표지: 종이색 바탕에서 흰 표지의 가장자리가 사라지지 않게 옅은 테두리 한 줄 */
+.fcovers__cover {
+  grid-column: 1 / -1;
+  display: block;
+  height: var(--cover-h);
+  margin-bottom: 10px;
+  background: var(--ink-faint);
+  box-shadow: 0 0 0 1px var(--edge-shade-soft);
+}
+
+.fcovers__cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (hover: hover) {
+  .fcovers__book:hover .fcovers__cover {
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+}
+
+.fcovers__no {
+  grid-row: 2 / span 2;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.fcovers__title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fcovers__author {
+  grid-column: 2;
+  color: var(--ink-2);
+}
+
+/* 좁은 화면(모바일 다듬기는 나중에): 다이얼 위, 표지 줄 아래 */
+@media (max-width: 899px) {
+  .fields__content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .fdial {
+    --dial-size: clamp(32px, 9vw, 56px);
+    margin-right: calc(var(--page-pad) * -1);
+  }
+
+  .fcovers {
+    --cover-h: clamp(120px, 22vh, 180px);
+    align-self: end;
+    gap: 16px;
+    margin-left: calc(var(--page-pad) * -1);
+    padding: 8px var(--page-pad) 12px;
+  }
+}

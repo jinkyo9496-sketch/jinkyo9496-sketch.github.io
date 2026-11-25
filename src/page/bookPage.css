@@ -1,0 +1,388 @@
+/*
+ * 책 페이지의 글과 조작부. 화면 왼쪽에는 WebGL 장면의 책이 떠 있고, 여기는 오른쪽의 글과 아래의 조작부다.
+ * 색은 토큰만 쓴다: 이 페이지 안에서 --paper·--ink는 책의 대표색과 그 위의 글자색이다(App, index.css).
+ * 둥근 모서리·그라데이션 없음. 글꼴은 Pretendard 하나, 크기와 굵기로만 위계를 준다.
+ */
+.bookpage {
+  /* 책의 대표색 위에서는 옅은 먹(--ink-2)이 읽힌다는 보장이 없다: 글은 모두 그 페이지의 글자색으로 쓴다 */
+  --ink-2: var(--ink);
+  /* 글이 들어오기를 기다리는 시간: 서가에서 열렸을 때는 책이 자리를 잡은 뒤 */
+  --text-wait: 2080ms;
+
+  position: absolute;
+  top: var(--header-h);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) var(--footer-h);
+  color: var(--ink);
+  /* 빈 곳은 아무것도 가로막지 않는다 */
+  pointer-events: none;
+  transition: opacity 180ms linear;
+}
+
+.bookpage[data-leaving] {
+  opacity: 0;
+}
+
+/*
+ * ── 오른쪽 글: 화면 폭의 62%에서 시작해 세로 가운데 ───────────────
+ * 왼쪽 62%는 책의 자리다(나중에 책을 펼치면 표지 폭의 두 배를 쓴다). motion.ts의 PAGE.textFrom과 같은 값.
+ */
+.bookpage__column {
+  position: relative;
+  display: grid;
+  align-content: center;
+  min-height: 0;
+  margin-left: 62%;
+  padding: 24px max(var(--page-pad), 3vw) 24px 0;
+  overflow: hidden auto;
+  pointer-events: auto;
+}
+
+.bookpage__text {
+  grid-area: 1 / 1;
+  max-width: 36em;
+  font-size: 16px;
+}
+
+/* 기본 여백을 지운다. :where로 묶어 우선순위를 낮춘다(아래의 항목별 여백이 이긴다) */
+.bookpage__text :where(p, h1, h2) {
+  margin: 0;
+}
+
+.bookpage__series {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.bookpage__title {
+  margin-top: 2px;
+  /* 글 칸이 좁으므로(화면 폭의 30%쯤) 제목도 그에 맞춘다 */
+  font-size: clamp(26px, 2.5vw, 40px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 제목은 열릴 때 포커스만 받는다(읽히는 자리). 링은 그리지 않는다 */
+.bookpage__title:focus {
+  outline: none;
+}
+
+.bookpage__subtitle {
+  margin-top: 30px;
+  font-size: clamp(17px, 1.45vw, 21px);
+  font-weight: 500;
+  line-height: 1.5;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.bookpage__meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.9em;
+  margin-top: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+/* 소속은 이름보다 한 단계 가볍게 */
+.bookpage__affiliation {
+  font-weight: 400;
+}
+
+.bookpage__summary {
+  margin-top: 36px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.75;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 편집자의 한 마디: 소개 아래, 위에 가는 선 하나를 두고 작은 이름표와 글 */
+.bookpage__note {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ink);
+}
+
+.bookpage__note-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+}
+
+.bookpage__note-text {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.75;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* ── 움직임: 글은 책이 자리를 잡은 뒤 마지막에 들어온다 ───────── */
+@keyframes bookpage-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+}
+
+/* 같은 움직임의 다른 이름 둘: 책이 바뀔 때마다 번갈아 써서 다시 재생한다 */
+@keyframes bookpage-in-a {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+}
+
+@keyframes bookpage-in-b {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+}
+
+@keyframes bookpage-out {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+@keyframes bookpage-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.bookpage__text[data-enter='open'] {
+  animation: bookpage-in 320ms var(--ease-shelf) var(--text-wait) both;
+}
+
+.bookpage__text[data-enter='direct'] {
+  animation: bookpage-in 320ms var(--ease-shelf) 160ms both;
+}
+
+.bookpage__text[data-enter='turn-a'] {
+  animation: bookpage-in-a 320ms var(--ease-shelf) 440ms both;
+}
+
+.bookpage__text[data-enter='turn-b'] {
+  animation: bookpage-in-b 320ms var(--ease-shelf) 440ms both;
+}
+
+.bookpage__text.bookpage__ghost {
+  pointer-events: none;
+  animation: bookpage-out 220ms linear both;
+}
+
+/*
+ * ── 책 펼쳐 보기 ────────────────────────────────────────────
+ * 책 위의 누르는 자리: 화면 전체를 기준으로, 장면이 책을 그리는 자리와 같은 곳에 둔다
+ * (덮인 책: motion.ts의 PAGE, 펼친 책: PAGE_SPREAD. 책등이 가운데이고 좌우가 한 쪽씩이다).
+ */
+.bookpage__hits {
+  position: absolute;
+  top: calc(-1 * var(--header-h));
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.bookpage__hit {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.bookpage__hit:disabled {
+  cursor: default;
+}
+
+.bookpage__hit--book {
+  --h: min(64vh, 34vw / var(--cover-aspect));
+  top: 56.5%;
+  left: 27%;
+  width: calc(var(--h) * var(--cover-aspect) * 0.92);
+  height: var(--h);
+  transform: translate(-50%, -50%);
+}
+
+.bookpage__hits[data-open] {
+  --h: min(66vh, 25vw / var(--cover-aspect));
+}
+
+.bookpage__hit--left,
+.bookpage__hit--right {
+  top: 55%;
+  left: 30.7%;
+  width: calc(var(--h) * var(--cover-aspect));
+  height: var(--h);
+  transform: translate(0, -50%);
+}
+
+.bookpage__hit--left {
+  transform: translate(-100%, -50%);
+}
+
+/*
+ * 종이 더미의 옆면(책 전체가 든 권): 펼친 책의 좌우 바깥(배 쪽)에 보이는 더미의 단면 위에 놓인 세로 띠.
+ * 폭은 그 더미의 몫(--pile, 0~1)만큼이다. 포인터의 가로 자리가 더미의 깊이가 된다. 그림은 캔버스가 그린다.
+ * --edge-full: 더미 전체(책의 두께)의 배 쪽 면이 화면에 보이는 폭(reader.ts의 READER.pile.fan)
+ */
+.bookpage__edge {
+  /* 띠의 양옆으로 더 받는 폭(BookPage.tsx의 EDGE_PAD와 같은 값): 띠를 조금 벗어나 눌러도 받는다 */
+  --edge-pad: 10px;
+  /* 더미 전체의 띠가 화면에 보이는 폭: 두께에 비례하는 몫 + 늘 더 나오는 몫(READER.pile.base). 계수 0.95는 화면에서 잰 값이다(READER.pile.fan 0.9에 원근이 더해진다) */
+  --edge-full: calc(var(--h) * var(--spine-aspect, 0.09) * 0.95);
+  --edge-base: calc(var(--h) * 0.02);
+  top: 55%;
+  left: calc(30.7% + var(--h) * var(--cover-aspect));
+  width: max(30px, calc(var(--edge-full) * var(--pile, 0) + var(--edge-base) + var(--edge-pad) * 2));
+  height: var(--h);
+  transform: translate(calc(var(--edge-pad) * -1), -50%);
+  cursor: pointer;
+}
+
+.bookpage__edge--left {
+  /* 왼쪽 더미는 더 누워 있고(READER.pile.fan.left) 표지가 들려 있어 띠가 더 넓고 더 바깥에 보인다(화면에서 잰 값) */
+  --edge-full: calc(var(--h) * var(--spine-aspect, 0.09) * 1.65);
+  left: calc(30.7% - var(--h) * var(--cover-aspect));
+  transform: translate(calc(-100% - 1px + var(--edge-pad)), -50%);
+}
+
+/*
+ * 미리보기가 끝난 면(마지막 펼침면의 오른쪽, 빈 종이): 한 줄과 서점으로 가는 `[ ]` 버튼.
+ * 종이 위라 책 페이지의 대표색이 아니라 서가의 종이·먹을 쓴다(버튼의 포커스 선도 이 색을 따른다).
+ * 종이는 장면이 조명으로 그려 조금 어두울 수 있으니 옅은 먹(--ink-2)은 쓰지 않는다: 글은 먹이 살짝 빠진 색(--ink-soft)이다.
+ * 자리는 오른쪽 면의 누르는 자리와 같고, 마지막 장이 다 넘어온 뒤(reader.ts의 READER.turn 860ms)에 나타난다:
+ * 그 전에는 보이지도 눌리지도 포커스되지도 않는다(visibility: hidden. 방금 `다음 장`을 누른 자리라 잇달아 누르면 서점이 열릴 수 있다).
+ */
+.bookpage__end {
+  --ink: var(--shelf-ink);
+  --paper: var(--shelf-paper);
+  position: absolute;
+  top: 55%;
+  left: 30.7%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(var(--h) * var(--cover-aspect));
+  height: var(--h);
+  transform: translate(0, -50%);
+  color: var(--ink);
+  pointer-events: none;
+  animation: bookpage-end-in 320ms linear 900ms both;
+}
+
+.bookpage__end .bracket {
+  pointer-events: auto;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/*
+ * 종이 위의 버튼은 조용하게: 평소에는 먹이 살짝 빠진 색(--ink-soft)이고, 포인터를 올리거나 포커스가 오면 먹색이 된다.
+ * 다른 `[ ]` 버튼처럼 글자 상자가 까맣게 반전되지 않는다(2026-11-25 편집자 요청: 흰 종이 위의 까만 상자가 어색하다).
+ */
+.bookpage__end .bracket__text {
+  color: var(--ink-soft);
+  transition: color 160ms linear;
+}
+
+@media (hover: hover) {
+  .bookpage__end .bracket.bracket:hover .bracket__text {
+    background: none;
+    color: var(--ink);
+  }
+}
+
+.bookpage__end .bracket.bracket:focus-visible .bracket__text {
+  color: var(--ink);
+}
+
+.bookpage__end-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+@keyframes bookpage-end-in {
+  from {
+    visibility: hidden;
+    opacity: 0;
+  }
+  to {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+.bookpage__edge[aria-disabled='true'] {
+  cursor: default;
+}
+
+/* 키보드로 고른 누르는 자리: 책을 두르는 선(책의 대표색 바탕 위라 그 페이지의 글자색) */
+.bookpage__hit:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+
+/*
+ * ── 권수 다이얼 ─────────────────────────────────────────────
+ * 화면 맨 아래 줄(서가의 하단 바 자리)에 놓인 다이얼(모양은 chrome.css의 .dial, 서가의 하단 바와 같은 것).
+ * 여기서는 선과 포인터가 서가의 종이색이다(바탕이 책의 대표색). 선은 조금 흐리게(0.7), 포인터는 또렷하게 둔다.
+ * 폭은 가운데에서 왼쪽으로 170px 앞까지이고(전에 `[ 서가로 ]`가 있던 자리. 2026-11-24에 버튼을 없앴고 폭은 그대로 두었다), 넘치는 양 끝의 선은 잘린다.
+ * 가운데는 떠 있는 책의 가운데(motion.ts의 PAGE.centreX, 펼치면 PAGE_SPREAD.centreX)와 같다.
+ */
+.bookpage__dial {
+  --dial-line: var(--shelf-paper);
+  --dial-pointer: var(--shelf-paper);
+  --dial-dim: 0.7;
+  /* 가운데에서 왼쪽으로 화면 끝의 170px 앞까지, 오른쪽도 같은 만큼 */
+  --dial-centre: 27%;
+  --dial-max: max(0px, calc((var(--dial-centre) - 170px) * 2));
+
+  position: absolute;
+  bottom: 0;
+  left: var(--dial-centre);
+  z-index: 1;
+  height: var(--footer-h);
+  translate: -50% 0;
+  pointer-events: auto;
+  transition:
+    left 700ms var(--ease-shelf),
+    width 700ms var(--ease-shelf);
+  animation: bookpage-fade 320ms linear var(--text-wait) both;
+}
+
+.bookpage__dial[data-open] {
+  --dial-centre: 30.7%;
+}
+
+.bookpage[data-entrance='direct'] .bookpage__dial {
+  animation-delay: 160ms;
+}

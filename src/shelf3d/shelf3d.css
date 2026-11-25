@@ -1,0 +1,56 @@
+/*
+ * WebGL 서가. 서가 칸(.shelf)과 클릭 판(.shelf__hit)은 CSS 서가의 것을 그대로 쓰고(../shelf/shelf.css),
+ * 여기에는 캔버스와 책 버튼만 둔다. 색은 :root 토큰만 쓴다.
+ */
+.shelf__canvas-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.shelf__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.shelf__books {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * 책 버튼: 눈에는 보이지 않지만(그림은 캔버스가 그린다) 포커스를 받고 보조 기술에 읽힌다.
+ * 화면에 보이는 그 책의 자리에 놓여 있어, 포커스 링이 책을 두른다.
+ * 기준점은 CSS 서가의 책과 같다: 가로 가운데, 세로는 가운데에서 --lift만큼 위.
+ */
+.shelf__book {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--lift, 0px));
+  width: var(--w);
+  height: var(--h);
+  margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  cursor: inherit;
+  transform: translate(var(--x), var(--y));
+}
+
+/* 포커스 링: 2px 먹 선. 책이 넘어갈 때는 책과 같은 속도로 따라간다 */
+.shelf__book:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  transition:
+    transform var(--move),
+    width var(--move),
+    height var(--move),
+    margin var(--move);
+}

@@ -1,0 +1,462 @@
+/* 서가 3D 장면. 색은 :root 토큰만 사용한다. */
+.shelf {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* 원근 거리는 책 높이에 비례시켜 화면 크기가 달라도 같은 깊이감을 유지한다 */
+  perspective: calc(var(--book-h) * 2.6);
+  /* 소실점은 책의 세로 중심(칸 가운데에서 --lift만큼 위) */
+  perspective-origin: 50% calc(50% - var(--lift, 0px));
+  /* 끌기는 서가가 받는다(가로 = 책 넘기기, 세로 = 화면 전환). 두 손가락 확대는 브라우저에 맡긴다 */
+  touch-action: pinch-zoom;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+
+  /* 비스듬히 보이는 표지 옆면을 덮는 먹의 농도: 그림이 아니라 그늘로 읽히게 짙게 */
+  --side-shade: 0.62;
+  --move: var(--dur-shelf) var(--ease-shelf);
+  /* 뽑히는 깊이(책 높이 대비)와 속도: 천천히 묵직하게 나오고 들어간다 */
+  --pull: 0.2;
+  --hover-move: 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.shelf[data-dragging],
+.shelf[data-dragging] .book__box {
+  cursor: grabbing;
+}
+
+.shelf__row {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform-style: preserve-3d;
+}
+
+/* 클릭·호버 판정용 평평한 판. 3D 책 위를 덮고 좌표로 책을 고른다. */
+.shelf__hit {
+  position: absolute;
+  inset: 0;
+}
+
+.shelf__hit[data-over='book'] {
+  cursor: pointer;
+}
+
+.shelf[data-dragging] .shelf__hit {
+  cursor: grabbing;
+}
+
+/*
+ * 각 책의 기준점은 장면의 가로 가운데, 세로로는 가운데에서 --lift만큼 위
+ * (아래에 반사 자리를 둔다. 클릭 판정도 같은 값을 쓴다). 가로 위치(--x)만 옮긴다.
+ */
+.book {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--lift, 0px));
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: translate3d(var(--x), 0, 0);
+  transition:
+    transform var(--move),
+    visibility 0s;
+}
+
+/* 화면에서 먼 책은 그리지 않는다. 밀려 나가는 동안은 보이도록 숨김만 늦춘다. */
+.book[data-far] {
+  visibility: hidden;
+  transition:
+    transform var(--move),
+    visibility 0s linear var(--dur-shelf);
+}
+
+/* 상자(버튼): 앞표지 폭(--cover-w) x 높이(--book-h) x 두께(--spine-w) */
+.book__box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  overflow: visible;
+  outline: none;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transform: translateZ(var(--z)) rotateY(var(--ry));
+  transition:
+    transform var(--move),
+    opacity var(--move),
+    translate var(--hover-move),
+    box-shadow var(--hover-move);
+}
+
+/*
+ * 포인터에 대한 반응(S8). 마우스처럼 올려 둘 수 있는 포인터에서만.
+ * 책을 돌리는 transform과 섞이지 않도록 따로 있는 속성(translate, rotate)을 쓴다:
+ * 책이 넘어갈 때의 회전(680ms)과 따로 420ms로 움직인다. 클릭 판정은 평평한 판이 하므로 영향이 없다.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .book__box {
+    transition:
+      transform var(--move),
+      translate var(--hover-move),
+      rotate var(--hover-move);
+  }
+
+  /*
+   * 책등: 서가에서 책을 뽑듯, 보는 사람 쪽으로 곧게 끌려 나온다(위로 뜨지 않는다).
+   * 원근 때문에 뽑힌 책이 옆 책보다 조금 크게 보이고, 옆 책은 그대로 있다.
+   */
+  .book[data-hover][data-current='false'] .book__box {
+    translate: 0 0 calc(var(--book-h) * var(--pull));
+  }
+
+  /* 가운데 표지: 포인터 쪽으로 아주 조금 기운다(Shelf가 --tilt를 넣는다. 없으면 제자리) */
+  .book[data-current='true'] .book__box {
+    rotate: var(--tilt, 0deg);
+  }
+}
+
+.book[data-current='true'] .book__box {
+  cursor: inherit;
+  /*
+   * 책이 놓이는 움직임: 가운데로 오는 동안(680ms) 제자리보다 조금 앞으로 나와 있다가,
+   * 잠깐 멈춘 뒤(약 0.15초) 제자리로 내려앉는다.
+   */
+  animation: book-place 1000ms both;
+}
+
+/* 지나가다 멈춘 자리의 책은 천천히 나오므로(900ms), 놓이는 움직임도 그만큼 길게 한다 */
+.stage[data-settling] .book[data-current='true'] .book__box {
+  animation-duration: 1320ms;
+}
+
+@keyframes book-place {
+  0% {
+    translate: 0 0 0;
+    animation-timing-function: cubic-bezier(0.32, 0.12, 0.2, 1);
+  }
+  62% {
+    translate: 0 0 calc(var(--book-h) * 0.04);
+    animation-timing-function: linear;
+  }
+  78% {
+    translate: 0 0 calc(var(--book-h) * 0.04);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+  100% {
+    translate: 0 0 0;
+  }
+}
+
+.book__face {
+  position: absolute;
+  display: block;
+  height: var(--book-h);
+  top: calc(var(--book-h) / -2);
+  /* 그림이 오기 전에는 빈 책으로 보인다(구멍이 아니라) */
+  background: var(--ink-faint);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transition:
+    visibility 0s,
+    opacity var(--move),
+    box-shadow var(--hover-move);
+}
+
+.book__face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  -webkit-user-drag: none;
+}
+
+/*
+ * 질감과 조명(그림 위에 얹는 층). 실제 책처럼 보이게 한다:
+ * - 모든 면에 옅은 종이 결(--grain)
+ * - 책등: 양 모서리만 아주 조금 어둡다. 무선 제본의 책등은 평평하므로 둥근 음영은 넣지 않는다
+ * - 표지: 양 가장자리만 아주 조금 어둡다. 무선 제본이라 양장처럼 접히는 홈은 없다
+ * 여기의 그라데이션은 재질과 빛을 그리는 것이다(장식 그라데이션 금지의 예외).
+ */
+.book__face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.book__face--spine::before {
+  background:
+    var(--grain),
+    /* 빛이 위에서 오므로 아래로 갈수록 아주 조금 어둡다 */
+    linear-gradient(to bottom, transparent 45%, var(--edge-shade-soft) 100%),
+    linear-gradient(to right, var(--edge-shade-soft) 0%, transparent 10%, transparent 88%, var(--edge-shade-soft) 100%);
+}
+
+.book__face--front::before {
+  background:
+    var(--grain),
+    linear-gradient(to right, var(--edge-shade-soft) 0%, transparent 5%, transparent 72%, var(--edge-shade-soft) 100%);
+}
+
+.book__face--back::before {
+  background:
+    var(--grain),
+    linear-gradient(to left, var(--edge-shade-soft) 0%, transparent 5%, transparent 72%, var(--edge-shade-soft) 100%);
+}
+
+/*
+ * 조명과 그림자. 빛은 정면 위에서 가운데를 비춘다.
+ * 책등 위에 먹 막을 얹되 왼쪽 끝(--sh-l)과 오른쪽 끝(--sh-r)의 농도를 따로 둔다. 그림자는 드리우는
+ * 책에 가까운 쪽이 짙고 멀어질수록 옅어지므로, 고르게 어두워지는 것이 아니라 한쪽으로 기운다.
+ * - 평소: 가운데에서 멀수록 조금씩 어둡다(권당 2%)
+ * - 가운데 책은 앞으로 나와 있어 양옆 두 권에 그림자를 드리운다(가까운 쪽 42% → 먼 쪽 12%, 둘째 책은 약하게)
+ * - 포인터로 뽑힌 책은 바로 옆 두 권에 그림자를 드리운다. 다른 책은 그대로다
+ * 농도 값이 부드럽게 바뀌도록 숫자 속성으로 등록한다(등록을 모르는 브라우저에서는 바로 바뀐다).
+ */
+@property --sh-l {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --sh-r {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+.book__face--spine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  --sh-l: calc(var(--dist, 0) * 0.02);
+  --sh-r: calc(var(--dist, 0) * 0.02);
+  /* 17,17,17은 --ink와 같은 먹색이다(농도만 바꾸려고 풀어 썼다) */
+  background: linear-gradient(90deg, rgba(17, 17, 17, var(--sh-l)), rgba(17, 17, 17, var(--sh-r)));
+  transition:
+    --sh-l var(--hover-move),
+    --sh-r var(--hover-move);
+  pointer-events: none;
+}
+
+.book[data-cast='l1'] .book__face--spine::after {
+  --sh-l: 0.12;
+  --sh-r: 0.42;
+}
+
+.book[data-cast='l2'] .book__face--spine::after {
+  --sh-l: 0.05;
+  --sh-r: 0.15;
+}
+
+.book[data-cast='r1'] .book__face--spine::after {
+  --sh-l: 0.42;
+  --sh-r: 0.12;
+}
+
+.book[data-cast='r2'] .book__face--spine::after {
+  --sh-l: 0.15;
+  --sh-r: 0.05;
+}
+
+.book[data-cast] .book__face--spine::after {
+  transition:
+    --sh-l var(--move),
+    --sh-r var(--move);
+}
+
+/* 가운데 책의 책등은 빛을 등지고 돌아서 있으므로 어둡다(돌아서는 동안 밝은 면이 어두워진다) */
+.book[data-current='true'] .book__face--spine::after {
+  --sh-l: 0.55;
+  --sh-r: 0.55;
+  transition:
+    --sh-l var(--move),
+    --sh-r var(--move);
+}
+
+/*
+ * 표지가 정면으로 돌아와 놓일 때 빛이 한 번 스친다: 비스듬한 밝은 띠가 표지를 왼쪽에서 오른쪽으로 지나간다.
+ * (결·가장자리 그늘 층 사이에 띠 층을 하나 더 두고 그 위치만 움직인다.)
+ */
+.book[data-current='true'] .book__face--front::before {
+  background:
+    var(--grain),
+    linear-gradient(105deg, transparent 42%, var(--glint) 50%, transparent 58%) 100% 0 / 260% 100% no-repeat,
+    linear-gradient(to right, var(--edge-shade-soft) 0%, transparent 5%, transparent 72%, var(--edge-shade-soft) 100%);
+  animation: cover-glint 900ms cubic-bezier(0.3, 0.1, 0.3, 1) 420ms both;
+}
+
+@keyframes cover-glint {
+  from {
+    background-position:
+      0 0,
+      100% 0,
+      0 0;
+  }
+  to {
+    background-position:
+      0 0,
+      0% 0,
+      0 0;
+  }
+}
+
+/*
+ * 서가에 들어설 때: 책들이 아래에서 올라와 선다. 가운데 책이 먼저, 멀수록 조금씩 늦게(40ms씩).
+ * 학제별 분류에서 돌아올 때(서가로든 인트로로든)마다, 그리고 페이지가 처음 뜰 때 한 번 재생된다.
+ * 인트로에서도 걸려 있다(2026-11-24): 인트로 아래에 책 머리가 비치므로 책은 이미 서 있어야 하고, 인트로에서 서가로
+ * 내려올 때 다시 재생되어 비치던 책이 꺼졌다 올라오면 안 된다.
+ */
+.screens:not([data-screen='fields']) .book {
+  animation: book-rise 760ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--dist, 0) * 40ms + 180ms);
+}
+
+@keyframes book-rise {
+  from {
+    translate: 0 calc(var(--book-h) * 0.55);
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* 뽑혀 나온 책은 빛을 온전히 받는다 */
+  .book[data-hover][data-current='false'] .book__face--spine::after {
+    --sh-l: 0;
+    --sh-r: 0;
+  }
+
+  /* 그 책의 그림자가 바로 옆 책에 진다: 뽑힌 책 쪽 끝이 짙다 */
+  .book[data-hover-side='left'] .book__face--spine::after {
+    --sh-l: 0.1;
+    --sh-r: 0.5;
+    transition:
+      --sh-l var(--hover-move),
+      --sh-r var(--hover-move);
+  }
+
+  .book[data-hover-side='right'] .book__face--spine::after {
+    --sh-l: 0.5;
+    --sh-r: 0.1;
+    transition:
+      --sh-l var(--hover-move),
+      --sh-r var(--hover-move);
+  }
+
+  /* 뽑힌 책은 드러난 옆면도 빛을 받는다 */
+  .book[data-hover][data-current='false'] .book__face--front::after,
+  .book[data-hover][data-current='false'] .book__face--back::after {
+    opacity: calc(var(--side-shade) * 0.4);
+  }
+
+  /* 바닥 그림자도 책을 따라 앞으로 나오며 넓고 짙어진다 */
+  .book[data-hover][data-current='false'] .book__shadow {
+    translate: 0 0 calc(var(--book-h) * var(--pull));
+    opacity: 1;
+    box-shadow: 0 0 20px 9px var(--shadow);
+  }
+}
+
+/* 가운데 책은 앞으로 나와 있어 바닥 그림자가 넓고 짙다 */
+.book[data-current='true'] .book__shadow {
+  opacity: 1;
+  box-shadow: 0 0 22px 9px var(--shadow);
+}
+
+/*
+ * 옆으로 보이는 표지 면은 그늘이다: 책등에 가까운 앞쪽은 조금 덜 어둡고, 서가 안쪽으로 들어갈수록 짙다.
+ * (앞표지는 책등이 왼쪽, 뒤표지는 오른쪽에 있다.)
+ */
+.book__face--back::after {
+  background: linear-gradient(to left, rgba(17, 17, 17, 0.7), var(--ink));
+}
+
+.book__face--front::after,
+.book__face--back::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--side-shade);
+  transition: opacity var(--move);
+  pointer-events: none;
+}
+
+.book__face--front::after {
+  background: linear-gradient(to right, rgba(17, 17, 17, 0.7), var(--ink));
+}
+
+.book[data-current='true'] .book__face--front::after {
+  opacity: 0;
+}
+
+.book__face--front,
+.book__face--back {
+  width: var(--cover-w);
+  left: calc(var(--cover-w) / -2);
+}
+
+.book__face--front {
+  transform: translateZ(calc(var(--spine-w) / 2));
+}
+
+.book__face--back {
+  transform: rotateY(180deg) translateZ(calc(var(--spine-w) / 2));
+}
+
+/* 책등은 상자의 왼쪽(-X) 면 */
+.book__face--spine {
+  width: var(--spine-w);
+  left: calc(var(--spine-w) / -2);
+  transform: rotateY(-90deg) translateZ(calc(var(--cover-w) / 2));
+}
+
+/*
+ * 보이지 않는 표지 면은 그리지 않는다: 가운데보다 왼쪽 책은 오른쪽 면(앞표지)만,
+ * 오른쪽 책은 왼쪽 면(뒤표지)만 보인다. 회전·이동 중에는 보이도록 숨김만 늦춘다.
+ */
+.book[data-side='right'] .book__face--front,
+.book[data-side='left'] .book__face--back,
+.book[data-side='current'] .book__face--back {
+  visibility: hidden;
+  transition:
+    visibility 0s linear var(--dur-shelf),
+    opacity var(--move);
+}
+
+/* 포커스 링: 정면에 보이는 면(가운데 책은 앞표지, 나머지는 책등)에 먹 선 */
+.book[data-current='true'] .book__box:focus-visible .book__face--front,
+.book[data-current='false'] .book__box:focus-visible .book__face--spine {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* 바닥 그림자: 정면에 보이는 면 폭만큼(scaleX), 책 밑에 옅게 */
+.book__shadow {
+  position: absolute;
+  left: -50px;
+  top: calc(var(--book-h) / 2 - 4px);
+  width: 100px;
+  height: 2px;
+  background: var(--shadow);
+  /* 흐림은 filter 대신 box-shadow로 낸다(책마다 필터 레이어를 만들지 않게) */
+  box-shadow: 0 0 12px 5px var(--shadow);
+  opacity: 0.7;
+  transform: translateZ(-1px) scaleX(var(--shadow-s));
+  transition: transform var(--move);
+  pointer-events: none;
+}

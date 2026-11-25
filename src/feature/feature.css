@@ -1,0 +1,541 @@
+/*
+ * 신간 소개 화면(웰컴 아래, 서가 위. 2026-11-24). 색은 :root 토큰만 쓴다.
+ * 웰컴과 같은 자리다: 위는 헤더 높이만큼, 아래는 서가의 책 머리가 비치는 띠(--peek-zone)만큼 비운다.
+ * 바탕은 칠하지 않는다(뒤의 웰컴 화면이 종이색이고, 그 로고와 캐치프레이즈는 이 화면에서 거둔다: intro.css).
+ * 단계(`data-step`, 박자는 `timeline.ts`)마다 무엇이 보이는지는 Feature.tsx가 `data-state`·`data-on`으로 적고,
+ * 여기서는 그 모습과 움직임을 정한다. 시간은 Feature가 넣은 변수(--bubble-in 등), 이징은 --ease-shelf.
+ * 움직임은 늘 재생한다(프로젝트 방침).
+ */
+.feature {
+  position: relative;
+  height: 100%;
+  padding: var(--header-h) var(--page-pad) var(--peek-zone, 0px);
+  color: var(--ink);
+  /* 세로 쓸기는 화면 전환이 받는다(페이지는 스크롤하지 않는다). 두 손가락 확대는 그대로 */
+  touch-action: pinch-zoom;
+}
+
+/* 내용 자리: 헤더 아래부터 비치는 책 위까지. 안의 치수는 이 자리의 폭·높이에 비례한다(cqw·cqh) */
+.feature__stage {
+  position: relative;
+  height: 100%;
+  container-type: size;
+}
+
+/* 서가에서 올라왔을 때: 다 펼쳐진 모습으로 바로 놓는다(애니메이션을 다시 돌리지 않는다) */
+.feature[data-instant] *,
+.feature[data-instant] *::after {
+  transition: none !important;
+}
+
+/* 두 줄 글의 한 줄 */
+.feature__line {
+  display: block;
+}
+
+/*
+ * ── 말풍선 ──────────────────────────────────────────────────
+ * 둥근 타원 + 초록(--bubble) + 종이색 굵은 글자. "둥근 모서리 금지"의 예외다: 편집자가 그림을 주며 요청했다(2026-11-24).
+ * 종이색 글자의 대비는 3.5:1이라 큰 글자 기준(24px 이상·굵게, 3:1)으로만 쓴다.
+ * 자리는 편집자의 그림대로: 첫째 왼쪽 위(꼬리 왼쪽 아래), 둘째 오른쪽 조금 아래(꼬리 오른쪽 아래), 셋째 가운데 아래(꼬리 왼쪽 아래).
+ */
+.feature__bubbles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(100cqw, 1040px);
+  height: min(100cqh, 600px);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.feature__bubble {
+  position: absolute;
+  max-width: 100%;
+  margin: 0;
+  padding: 1.5em 2.2em;
+  border-radius: 50%;
+  background: var(--bubble);
+  color: var(--paper);
+  font-size: clamp(24px, 2cqw, 30px);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  text-align: center;
+  word-break: keep-all;
+  /* 꼬리 쪽 아래 모서리에서 부풀어 나온다 */
+  transform-origin: 12% 100%;
+  opacity: 0;
+  scale: 0.6;
+  /* 거둘 때(웰컴으로 올라갈 때): 짧게 사라진 뒤 제자리로 */
+  transition:
+    opacity 240ms linear,
+    scale 0s linear 240ms,
+    translate 0s linear 240ms;
+}
+
+.feature__bubble .feature__line {
+  white-space: nowrap;
+}
+
+/* 꼬리: 타원의 아래에서 비스듬히 뻗은 세모(각진 도형) */
+.feature__bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -0.2em;
+  left: 12%;
+  width: 1.5em;
+  height: 1.7em;
+  background: var(--bubble);
+  clip-path: polygon(0 100%, 28% 0, 100% 18%);
+}
+
+.feature__bubble:nth-child(1) {
+  top: 4%;
+  left: 4%;
+}
+
+.feature__bubble:nth-child(2) {
+  top: 30%;
+  right: 2%;
+  transform-origin: 88% 100%;
+}
+
+.feature__bubble:nth-child(2)::after {
+  right: 12%;
+  left: auto;
+  clip-path: polygon(100% 100%, 0 18%, 72% 0);
+}
+
+.feature__bubble:nth-child(3) {
+  top: 60%;
+  left: 30%;
+}
+
+/* 생겨난다: 위에서부터 --bubble-gap 간격으로 하나씩 */
+.feature__bubbles[data-state='in'] .feature__bubble {
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity calc(var(--bubble-in, 480ms) * 0.6) linear,
+    scale var(--bubble-in, 480ms) var(--ease-shelf);
+  transition-delay: calc(var(--i, 0) * var(--bubble-gap, 750ms));
+}
+
+/* 큰 문구가 올라오며 위로 밀어낸다: 위의 것부터 조금씩 먼저 나간다 */
+.feature__bubbles[data-state='out'] .feature__bubble {
+  opacity: 0;
+  scale: 1;
+  translate: 0 -70cqh;
+  transition:
+    translate var(--claim-in, 720ms) var(--ease-shelf),
+    opacity calc(var(--claim-in, 720ms) * 0.7) linear;
+  transition-delay: calc(var(--i, 0) * 50ms);
+}
+
+/* ── 큰 문구: 아래에서 올라와 가운데에 머문다 ────────────────── */
+.feature__claim {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(28px, 4.2cqw, 64px);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.035em;
+  text-align: center;
+  word-break: keep-all;
+  pointer-events: none;
+  opacity: 0;
+  translate: 0 calc(-50% + 60cqh);
+  transition:
+    opacity 200ms linear,
+    translate 0s linear 200ms;
+}
+
+.feature__claim[data-state='in'] {
+  opacity: 1;
+  translate: 0 -50%;
+  transition:
+    translate var(--claim-in, 720ms) var(--ease-shelf),
+    opacity calc(var(--claim-in, 720ms) * 0.6) linear;
+}
+
+/* 목업이 들어오면 위로 조금 물러나며 사라진다 */
+.feature__claim[data-state='out'] {
+  opacity: 0;
+  translate: 0 calc(-50% - 8cqh);
+  transition:
+    translate var(--claim-out, 380ms) var(--ease-shelf),
+    opacity var(--claim-out, 380ms) linear;
+}
+
+/*
+ * ── 목업 · 글 · 영상의 줄 ────────────────────────────────────
+ * 셋이 한 줄로 가운데에 모여 있다. 글과 영상의 자리는 처음에 폭이 0이라 목업이 혼자 가운데에 있고,
+ * 자리가 열리면(폭이 생기면) 앞의 것이 왼쪽으로 밀린다: 목업이 왼쪽으로 비키고, 나중에는 책과 글이 함께 밀린다.
+ * 치수(1440×900: 내용 자리 약 1400×740): 목업 높이 462px(폭 314), 글 364px, 영상 616×347, 사이 42px.
+ */
+.feature__row {
+  --mock-h: min(80cqh, 33cqw, 540px);
+  --mock-w: calc(var(--mock-h) * 0.68);
+  --gap: clamp(20px, 3cqw, 48px);
+  --text-w: clamp(220px, 26cqw, 380px);
+  --video-w: min(100cqw - var(--mock-w) - var(--text-w) - var(--gap) * 2, 44cqw, 80cqh * 16 / 9);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* 묶음: 위를 맞춘 한 줄(글이 목업과 같은 높이에서 시작한다). 묶음 전체가 내용 자리의 가운데에 온다 */
+.feature__group {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* 목업: 조금 아래에서 떠올라 가운데에 선다 */
+.feature__book {
+  flex: none;
+  opacity: 0;
+  translate: 0 5cqh;
+  scale: 0.96;
+  transition:
+    opacity 240ms linear,
+    translate 0s linear 240ms,
+    scale 0s linear 240ms;
+}
+
+.feature__book[data-on] {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  transition:
+    opacity calc(var(--mockup-in, 700ms) * 0.6) linear,
+    translate var(--mockup-in, 700ms) var(--ease-shelf),
+    scale var(--mockup-in, 700ms) var(--ease-shelf);
+  /* 큰 문구가 물러나기 시작한 뒤에 들어온다 */
+  transition-delay: calc(var(--claim-out, 380ms) * 0.5);
+}
+
+.feature__mockup {
+  display: block;
+  width: auto;
+  height: var(--mock-h);
+}
+
+/*
+ * 글 묶음의 자리: 목업과 같은 높이에서 시작한다(위를 맞춘다). 자리의 폭이 열리는 동안 안의 글은 제 폭 그대로라
+ * 줄이 다시 나뉘지 않는다(넘치는 쪽은 가린다). 높이는 적어도 목업만큼이고 글이 길면 아래로 더 내려간다.
+ */
+.feature__text {
+  flex: none;
+  width: 0;
+  min-height: var(--mock-h);
+  margin-left: 0;
+  overflow: hidden;
+  transition:
+    width 0s linear 240ms,
+    margin-left 0s linear 240ms;
+}
+
+.feature__text[data-on] {
+  width: var(--text-w);
+  margin-left: var(--gap);
+  transition:
+    width var(--info-ms, 700ms) var(--ease-shelf),
+    margin-left var(--info-ms, 700ms) var(--ease-shelf);
+}
+
+.feature__copy {
+  width: var(--text-w);
+}
+
+.feature__info,
+.feature__pitch,
+.feature__note {
+  opacity: 0;
+  translate: 16px 0;
+  transition:
+    opacity 240ms linear,
+    translate 0s linear 240ms;
+}
+
+.feature__info[data-on] {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity calc(var(--info-ms, 700ms) * 0.6) linear calc(var(--info-ms, 700ms) * 0.4),
+    translate calc(var(--info-ms, 700ms) * 0.6) var(--ease-shelf) calc(var(--info-ms, 700ms) * 0.4);
+}
+
+.feature__pitch[data-on] {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity var(--pitch-ms, 500ms) linear,
+    translate var(--pitch-ms, 500ms) var(--ease-shelf);
+}
+
+.feature__note[data-on] {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity var(--note-ms, 600ms) linear,
+    translate var(--note-ms, 600ms) var(--ease-shelf);
+}
+
+/* 도서명과 그 우상단의 No.48(서가의 타이틀 띠와 같은 위첨자) */
+.feature__heading {
+  margin: 0;
+  font-size: clamp(24px, 2.3cqw, 34px);
+  line-height: 1.2;
+  word-break: keep-all;
+}
+
+.feature__title {
+  display: inline;
+  margin: 0;
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.feature__title:focus {
+  outline: none;
+}
+
+.feature__no {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  vertical-align: top;
+}
+
+.feature__subtitle {
+  margin: 14px 0 0;
+  font-size: clamp(14px, 1.25cqw, 18px);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+}
+
+.feature__meta {
+  margin: 18px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.feature__affiliation {
+  margin-left: 6px;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+/* 책 소개 문구: 저자 아래, 편집자의 한 마디 위의 한 문단 */
+.feature__pitch {
+  margin: clamp(12px, 1.3cqw, 18px) 0 0;
+  font-size: clamp(14px, 1.1cqw, 15px);
+  font-weight: 500;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.feature__note {
+  margin-top: clamp(14px, 1.5cqw, 22px);
+  padding-top: clamp(12px, 1.2cqw, 16px);
+  border-top: 1px solid var(--rule);
+}
+
+.feature__note-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+}
+
+.feature__note-text {
+  margin: 10px 0 0;
+  font-size: clamp(14px, 1.1cqw, 16px);
+  font-weight: 400;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+/* 영상의 자리: 폭이 열리며 책과 글을 왼쪽으로 밀고, 다 열릴 무렵 영상이 나타난다. 세로로는 목업의 가운데에 맞춘다 */
+.feature__video {
+  flex: none;
+  width: 0;
+  margin-top: max(0px, (var(--mock-h) - var(--video-w) * 9 / 16) / 2);
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    opacity 240ms linear,
+    width 0s linear 240ms,
+    margin-left 0s linear 240ms;
+}
+
+.feature__video[data-on] {
+  width: var(--video-w);
+  margin-left: var(--gap);
+  opacity: 1;
+  transition:
+    width var(--video-ms, 760ms) var(--ease-shelf),
+    margin-left var(--video-ms, 760ms) var(--ease-shelf),
+    opacity calc(var(--video-ms, 760ms) * 0.5) linear calc(var(--video-ms, 760ms) * 0.5);
+}
+
+/* 16:9. 영상이 오기 전에는 먹색 판 */
+.feature__frame {
+  width: var(--video-w);
+  aspect-ratio: 16 / 9;
+  background: var(--ink);
+}
+
+.feature__frame video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.feature__frame video:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/*
+ * 비치는 책 자리를 덮는 보이지 않는 판(웰컴의 .intro__peek과 같다): 마우스로 누르면 서가로 내려간다.
+ * 그 위에 걸친 서가 화면은 이 화면에서 `inert`라 누름이 이 판으로 내려온다.
+ */
+.feature__peek {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--peek-zone, 0px);
+  cursor: pointer;
+}
+
+/*
+ * 폭 900px 미만: 세로로 쌓는다(이 사이트는 데스크톱 우선이다. 넘치지 않게만 한다).
+ * 목업 → 글 → 영상. 글과 영상의 자리는 폭이 아니라 높이가 열린다(움직임 없이 나타난다).
+ */
+@media (max-width: 899px) {
+  .feature__bubbles {
+    width: 100cqw;
+    height: 100cqh;
+  }
+
+  .feature__bubble {
+    padding: 1.1em 1.5em;
+    line-height: 1.25;
+  }
+
+  .feature__bubble .feature__line {
+    white-space: normal;
+  }
+
+  .feature__bubble:nth-child(1) {
+    top: 2%;
+    left: 0;
+  }
+
+  .feature__bubble:nth-child(2) {
+    top: 34%;
+    right: 0;
+  }
+
+  .feature__bubble:nth-child(3) {
+    top: 66%;
+    left: 4%;
+  }
+
+  .feature__row {
+    --mock-h: min(24cqh, 220px);
+    --gap: clamp(8px, 1.6cqh, 16px);
+    --text-w: min(100cqw, 460px);
+    --video-w: min(100cqw, 26cqh * 16 / 9, 460px);
+  }
+
+  .feature__group {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .feature__text,
+  .feature__text[data-on] {
+    width: var(--text-w);
+    margin-left: 0;
+  }
+
+  .feature__text {
+    height: 0;
+    min-height: 0;
+  }
+
+  .feature__text[data-on] {
+    flex: 0 1 auto;
+    height: auto;
+    margin-top: var(--gap);
+  }
+
+  .feature__video,
+  .feature__video[data-on] {
+    width: var(--video-w);
+    margin-left: 0;
+  }
+
+  .feature__video {
+    height: 0;
+  }
+
+  .feature__video[data-on] {
+    height: auto;
+    margin-top: var(--gap);
+  }
+
+  .feature__heading {
+    font-size: 22px;
+  }
+
+  .feature__subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+  }
+
+  .feature__meta {
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  .feature__pitch {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .feature__note {
+    margin-top: 8px;
+    padding-top: 6px;
+  }
+
+  .feature__note-text {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+}

@@ -1,0 +1,53 @@
+/* 타이틀 띠. 색·모션은 :root 토큰만 사용한다. */
+.band {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding-top: var(--band-pad-top);
+  font-size: var(--band-size);
+  font-weight: 700;
+  line-height: var(--band-leading);
+  letter-spacing: -0.03em;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 띠의 왼쪽 끝을 화면 중앙에 두고, 현재 제목의 중심만큼 왼쪽으로 민다 */
+.band__track {
+  position: relative;
+  display: flex;
+  width: max-content;
+  margin-left: 50%;
+  white-space: nowrap;
+  transition: transform var(--dur-shelf) var(--ease-shelf);
+  will-change: transform;
+}
+
+.band__item {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  margin-right: 0.9em;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color var(--dur-shelf) var(--ease-shelf);
+}
+
+.band__item:last-child {
+  margin-right: 0;
+}
+
+.band__item[data-current='true'] {
+  color: var(--ink);
+  cursor: default;
+}
+
+/* 위첨자 번호: 제목 글자의 윗선에 맞춘다(줄 상자 위에서 글자 윗선까지 약 0.13em) */
+.band__no {
+  margin: calc(var(--band-size) * 0.13) 0 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  vertical-align: baseline;
+}

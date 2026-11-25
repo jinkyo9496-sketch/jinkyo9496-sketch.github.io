@@ -1,0 +1,269 @@
+/* 헤더·하단 바·권수 다이얼. 색은 :root 토큰만 쓴다. 둥근 모서리·그라데이션·그림자 없음. */
+
+/* ── `[ 라벨 ]` 버튼 ─────────────────────────────────────────── */
+/* 글자는 작지만 누르는 영역은 44px. 강조(hover·focus)는 안쪽 글자 상자에만 준다. */
+.bracket {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.bracket__text {
+  padding: 4px 5px;
+}
+
+@media (hover: hover) {
+  .bracket:not(:disabled, [aria-disabled='true']):hover .bracket__text {
+    background: var(--ink);
+    color: var(--paper);
+  }
+}
+
+.bracket:focus-visible {
+  outline: none;
+}
+
+.bracket:focus-visible .bracket__text {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.bracket:disabled,
+.bracket[aria-disabled='true'] {
+  color: var(--ink-2);
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── 헤더 ───────────────────────────────────────────────────── */
+/* 모든 화면 위에 늘 떠 있다. 종이색 바탕이라 밑으로 지나가는 화면을 가린다 */
+.header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: var(--header-h);
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 var(--page-pad);
+}
+
+/* 하단 1px 선: 화면 양옆 여백만큼 들여 긋는다 */
+.header::after {
+  content: '';
+  position: absolute;
+  right: var(--page-pad);
+  bottom: 0;
+  left: var(--page-pad);
+  height: 1px;
+  background: var(--rule);
+}
+
+.logo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.logo:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.logo__img {
+  display: block;
+  width: auto;
+  height: 22px;
+}
+
+/*
+ * 로고 한 벌(먹 / 흰색, 책 페이지용 한 색 둘): 같은 자리에 겹쳐 두고 `data-show`에 맞는 그림만 보인다.
+ * 바뀌는 때와 길이는 바탕색 전환(index.css의 --page-bg)과 같다.
+ */
+.logo__pair {
+  display: grid;
+}
+
+.logo__pair > .logo__img {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transition: opacity var(--page-clear) linear;
+}
+
+.logo[data-show='ink'] .logo__img[data-for='ink'],
+.logo[data-show='paper'] .logo__img[data-for='paper'],
+.logo[data-show='ink-mono'] .logo__img[data-for='ink-mono'],
+.logo[data-show='paper-mono'] .logo__img[data-for='paper-mono'] {
+  opacity: 1;
+}
+
+.app[data-view='book'] .logo__pair > .logo__img {
+  transition-duration: var(--page-in);
+  transition-delay: var(--page-open-at);
+}
+
+.app[data-view='book'][data-page='turn'] .logo__pair > .logo__img {
+  transition-delay: 140ms;
+}
+
+.app[data-view='book'][data-page='direct'] .logo__pair > .logo__img {
+  transition: none;
+}
+
+/* ── 하단 바 ─────────────────────────────────────────────────── */
+/* 서가 아래의 한 줄: 가운데에 권수 다이얼 */
+.bar {
+  grid-row: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--page-pad);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.bar__dial {
+  /* 양옆에 여백을 남긴 자리까지만 넓어진다(전에 `[ 학제별 분류 ]`가 있던 폭과 맞은편의 같은 폭) */
+  --dial-max: calc(100vw - var(--page-pad) * 2 - 260px);
+
+  grid-column: 2;
+  height: var(--footer-h);
+}
+
+/* 좁은 화면: 다이얼이 폭을 다 쓴다 */
+@media (max-width: 560px) {
+  .bar {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  .bar__dial {
+    --dial-max: 100%;
+
+    grid-column: 1;
+  }
+}
+
+/*
+ * ── 권수 다이얼 ─────────────────────────────────────────────
+ * 권마다 세로선 하나, 모두 같은 크기와 색이다. 지금 책의 선은 늘 다이얼의 가운데에 있고 그 위에 뒤집힌 삼각형 포인터가
+ * 고정돼 있다. 책이 바뀌면 선의 줄(.dial__track)이 서가와 같은 빠르기로 미끄러진다: 1권이면 선이 포인터 오른쪽에만,
+ * 마지막 권이면 왼쪽에만 있다. 서가의 하단 바와 책 페이지가 함께 쓴다(VolumeDial).
+ * 선 하나가 버튼이다: 누르는 자리는 선보다 넓고(선 사이의 틈까지) 다이얼의 높이만큼 길다.
+ *   --dial-index / --dial-count  지금 책의 순번(0부터)과 권수. VolumeDial이 넣는다
+ *   --dial-line     선의 색. 서가에서는 종이 바탕 위의 연한 회색(진한 먹은 쓰지 않는다)
+ *   --dial-pointer  포인터의 색. 서가에서는 중간 회색(지금 어디인지 알려 주는 것은 포인터 하나다)
+ *   --dial-dim      선의 불투명도(포인터를 올리면 1)
+ *   --dial-max      다이얼의 최대 폭(쓰는 쪽이 준다. 없으면 100%). 양쪽에 (권수 - 1)개씩 놓일 자리가 모자라면 여기서 끝을 잘라 낸다.
+ *                   여기(.dial)에는 기본값을 적지 않는다: 이 규칙이 .bar__dial보다 뒤에 있어 쓰는 쪽의 값을 덮는다
+ * 책 페이지에서는 그쪽 스타일이 색과 폭을 바꾼다(bookPage.css). 높이와 놓이는 자리는 쓰는 쪽이 정한다.
+ */
+.dial {
+  --dial-line: var(--shelf-ink-faint);
+  --dial-pointer: var(--shelf-ink-2);
+  --dial-dim: 1;
+  --tick-gap: clamp(3px, 0.4vw, 6px);
+  --tick-w: calc(2px + var(--tick-gap));
+  --tick-h: 12px;
+
+  position: relative;
+  width: min(calc((var(--dial-count) * 2 - 1) * var(--tick-w)), var(--dial-max, 100%));
+  overflow: clip;
+}
+
+/* 선의 줄: 왼쪽 끝을 다이얼의 가운데에 두고, 지금 책의 선의 가운데가 그 자리에 오게 왼쪽으로 당긴다 */
+.dial__track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  display: flex;
+  translate: calc((var(--dial-index) + 0.5) * var(--tick-w) * -1) 0;
+  transition: translate var(--dur-shelf) var(--ease-shelf);
+}
+
+/* 포인터: 가운데 선 바로 위의 뒤집힌 삼각형. 장식이고 누르는 것을 가로막지 않는다 */
+.dial__pointer {
+  position: absolute;
+  bottom: calc(50% + var(--tick-h) / 2 + 3px);
+  left: 50%;
+  width: 8px;
+  height: 6px;
+  background: var(--dial-pointer);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+.dial__tick {
+  position: relative;
+  flex: none;
+  width: var(--tick-w);
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* 선: 아랫단을 맞추고(줄의 세로 가운데에 놓인 선의 아랫단) 위로만 자란다 */
+.dial__tick::before {
+  content: '';
+  position: absolute;
+  bottom: calc(50% - var(--tick-h) / 2);
+  left: 50%;
+  width: 2px;
+  height: var(--tick-h);
+  background: var(--dial-line);
+  opacity: var(--dial-dim);
+  translate: -50% 0;
+  transition:
+    height 200ms var(--ease-shelf),
+    opacity 160ms linear;
+}
+
+/* 포인터를 올린 선은 조금 자란다(누를 수 있다는 표시. 색은 그대로다) */
+@media (hover: hover) {
+  .dial__tick:not([data-current]):hover::before {
+    height: calc(var(--tick-h) + 4px);
+    opacity: 1;
+  }
+}
+
+.dial__tick[data-current] {
+  cursor: default;
+}
+
+.dial__tick:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -8px;
+}

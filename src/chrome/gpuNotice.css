@@ -1,0 +1,41 @@
+/*
+ * 그래픽 가속 안내(GpuNotice): 헤더 바로 아래의 가는 띠. 색은 :root 토큰만 쓴다. 둥근 모서리·그라데이션·그림자 없음.
+ * 헤더의 둘째 줄처럼 읽힌다: 종이색 바탕, 먹 글자, 아래에 1px 먹 선(헤더의 선과 같이 양옆 여백만큼 들여 긋는다).
+ * 높이는 서가의 타이틀 띠 위 여백(--band-pad-top, 24px)과 같아 띠의 글자에 닿지 않고, 인트로의 로고 묶음과
+ * 학제별 분류의 다이얼·책도 가리지 않는다. 이 안내는 CSS 서가에서만 보이므로 책 페이지(대표색)와 겹칠 일이 없고,
+ * 상세 창(<dialog>)은 맨 위 층이라 종이색 막이 이 띠도 덮는다.
+ */
+.gpunotice {
+  position: absolute;
+  top: var(--header-h);
+  right: var(--page-pad);
+  left: var(--page-pad);
+  /* 헤더와 같은 층: 밑으로 지나가는 화면 위에 떠 있다 */
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--band-pad-top);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.gpunotice__text {
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0;
+  word-break: keep-all;
+}
+
+/*
+ * `[ 닫기 ]`: 누르는 영역은 44px 그대로이고, 띠의 높이는 늘리지 않는다(위아래로 띠 밖까지 눌린다:
+ * 위는 헤더의 빈 오른쪽, 아래는 타이틀 띠의 위 여백). 글자 상자의 오른쪽 끝을 선의 끝에 맞춘다
+ */
+.gpunotice__close {
+  margin: -11px -11px -11px 0;
+}
